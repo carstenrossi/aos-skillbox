@@ -148,15 +148,27 @@ Skillbox/
 
 ## 🤝 Contributing
 
-1. Fork das Repository
-2. Erstelle einen Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit deine Änderungen (`git commit -m 'Add some AmazingFeature'`)
-4. Push zum Branch (`git push origin feature/AmazingFeature`)
-5. Erstelle einen Pull Request
+Dieses Projekt ist proprietär und akzeptiert keine externen Beiträge. Alle Entwicklungsarbeiten werden intern durchgeführt.
 
-## 📄 License
+## 📄 Lizenz
 
-Dieses Projekt ist unter der MIT License lizenziert.
+**PROPRIETÄRE SOFTWARE - ALLE RECHTE VORBEHALTEN**
+
+© 2025 Carsten Rossi. Alle Rechte vorbehalten.
+
+Diese Software und der zugehörige Quellcode sind proprietäres Eigentum von Carsten Rossi. Die Verwendung, Vervielfältigung, Verteilung oder Modifikation dieser Software ist ohne ausdrückliche schriftliche Genehmigung des Eigentümers strengstens untersagt.
+
+### Nutzungsbedingungen:
+- **Kommerzielle Nutzung**: Ausschließlich mit schriftlicher Genehmigung von Carsten Rossi
+- **Vervielfältigung**: Nur für autorisierte Entwicklungs- und Testzwecke
+- **Modifikation**: Nur durch autorisierte Entwickler gestattet
+- **Verteilung**: Vollständig untersagt ohne Genehmigung
+- **Reverse Engineering**: Strengstens verboten
+
+### Haftungsausschluss:
+Diese Software wird "wie besehen" bereitgestellt, ohne jegliche Gewährleistung. Der Eigentümer übernimmt keine Haftung für Schäden, die durch die Nutzung dieser Software entstehen.
+
+Für Lizenzanfragen oder kommerzielle Nutzung kontaktieren Sie: Carsten Rossi
 
 ## 👨‍💻 Author
 
