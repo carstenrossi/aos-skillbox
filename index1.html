@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AssistantOS Skillbox</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+            padding-top: 30px;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.2rem;
+            font-weight: 300;
+        }
+
+        .avatars-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+
+        .avatar-card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .avatar-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            background: rgba(255,255,255,1);
+        }
+
+        .avatar-icon {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .avatar-1 .avatar-icon { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+        .avatar-2 .avatar-icon { background: linear-gradient(135deg, #10b981, #059669); }
+        .avatar-3 .avatar-icon { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+
+        .avatar-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .avatar-card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .model-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .chat-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chat-container {
+            background: white;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 800px;
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .chat-header {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .chat-header-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .chat-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .close-btn:hover {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .message.ai {
+            align-self: flex-start;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .chat-input-container {
+            padding: 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #eee;
+            border-radius: 25px;
+            outline: none;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .chat-input:focus {
+            border-color: #667eea;
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .typing-indicator {
+            align-self: flex-start;
+            padding: 12px 16px;
+            background: #f5f5f5;
+            border-radius: 18px;
+            color: #666;
+            display: none;
+        }
+
+        .config-section {
+            background: rgba(255,255,255,0.9);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+            display: none;
+        }
+
+        .config-input {
+            padding: 10px 15px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            width: 300px;
+            max-width: 100%;
+            margin: 10px;
+            font-size: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .avatars-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .chat-container {
+                width: 95%;
+                height: 90vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AssistantOS Skillbox</h1>
+            <p>Wähle Deinen persönlichen Assistenten</p>
+        </div>
+
+        <div class="config-section">
+            <h3>Open WebUI API Konfiguration</h3>
+            <div style="margin-bottom: 20px;">
+                <input type="text" id="apiUrl" class="config-input" placeholder="API URL (z.B. https://kr.assistantos.de)" value="https://kr.assistantos.de">
+                <input type="text" id="apiKey" class="config-input" placeholder="API Key (optional)" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijc1YmE3YTRlLTgzNjAtNDM2Mi1hYTVkLTU5OWI0NWQ0YjAzMCJ9.vMttlVgQPrMH4MjHO4koVFeltGTaqXG9_ds-ZdzrWxY">
+            </div>
+            <h4 style="margin-bottom: 15px; color: #333;">Modell-Konfiguration</h4>
+            <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
+                <input type="text" id="model1" class="config-input" placeholder="Narrative Coach Modell" value="narrative-coach" style="width: 200px;">
+                <input type="text" id="model2" class="config-input" placeholder="CSRD Coach Modell" value="csrd-coach" style="width: 200px;">
+                <input type="text" id="model3" class="config-input" placeholder="Adoption Coach Modell" value="adoption-coach" style="width: 200px;">
+            </div>
+            <button onclick="updateAvatarModels()" style="margin-top: 15px; padding: 10px 20px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 500;">Modelle aktualisieren</button>
+        </div>
+
+        <div class="avatars-grid">
+            <div class="avatar-card avatar-1" onclick="openChat('narrative', 'Narrative Assistant', '📖', 1)">
+                <div class="avatar-icon">📖</div>
+                <h3>Narrative Assistant</h3>
+                <p>Spezialisiert auf Storytelling, Kommunikation und narrative Entwicklung für Unternehmen und Personen</p>
+                <span class="model-badge" id="modelBadge1">narrative-coach</span>
+            </div>
+
+            <div class="avatar-card avatar-2" onclick="openChat('csrd', 'CSRD Assistant', '🌱', 2)">
+                <div class="avatar-icon">🌱</div>
+                <h3>CSRD Assistant</h3>
+                <p>Ihr Experte für Nachhaltigkeitsberichterstattung und CSRD-Compliance (Corporate Sustainability Reporting Directive)</p>
+                <span class="model-badge" id="modelBadge2">csrd-coach</span>
+            </div>
+
+            <div class="avatar-card avatar-3" onclick="openChat('adoption', 'Adoption Assistant', '🤝', 3)">
+                <div class="avatar-icon">🤝</div>
+                <h3>Adoption Assistant</h3>
+                <p>Unterstützt bei Veränderungsprozessen, Technologie-Adoption und organisatorischer Transformation</p>
+                <span class="model-badge" id="modelBadge3">adoption-coach</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="chat-overlay" id="chatOverlay">
+        <div class="chat-container">
+            <div class="chat-header">
+                <div class="chat-header-info">
+                    <div class="chat-avatar" id="chatAvatar"></div>
+                    <div>
+                        <h3 id="chatTitle"></h3>
+                        <small id="chatModel"></small>
+                    </div>
+                </div>
+                <button class="close-btn" onclick="closeChat()">×</button>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="message ai">
+                    Hallo! Ich bin bereit, Ihnen zu helfen. Wie kann ich Sie unterstützen?
+                </div>
+            </div>
+            <div class="typing-indicator" id="typingIndicator">
+                AI tippt...
+            </div>
+            <div class="chat-input-container">
+                <input type="text" class="chat-input" id="chatInput" placeholder="Schreiben Sie Ihre Nachricht...">
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()">Senden</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentModel = '';
+        let currentChatType = '';
+        let messages = [];
+
+        function updateAvatarModels() {
+            const model1 = document.getElementById('model1').value || 'narrative-coach';
+            const model2 = document.getElementById('model2').value || 'csrd-coach';
+            const model3 = document.getElementById('model3').value || 'adoption-coach';
+
+            document.getElementById('modelBadge1').textContent = model1;
+            document.getElementById('modelBadge2').textContent = model2;
+            document.getElementById('modelBadge3').textContent = model3;
+        }
+
+        function getCurrentModel(modelIndex) {
+            const modelInputs = ['model1', 'model2', 'model3'];
+            const modelInput = document.getElementById(modelInputs[modelIndex - 1]);
+            return modelInput.value || modelInput.placeholder;
+        }
+
+        function openChat(type, title, icon, modelIndex) {
+            currentChatType = type;
+            currentModel = getCurrentModel(modelIndex);
+            messages = [];
+            
+            document.getElementById('chatTitle').textContent = title;
+            document.getElementById('chatModel').textContent = currentModel;
+            document.getElementById('chatAvatar').textContent = icon;
+            
+            // Set avatar background color
+            const avatar = document.getElementById('chatAvatar');
+            switch(type) {
+                case 'narrative':
+                    avatar.style.background = 'linear-gradient(135deg, #8b5cf6, #7c3aed)';
+                    break;
+                case 'csrd':
+                    avatar.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                    break;
+                case 'adoption':
+                    avatar.style.background = 'linear-gradient(135deg, #3b82f6, #2563eb)';
+                    break;
+            }
+            
+            // Reset chat messages
+            const messagesContainer = document.getElementById('chatMessages');
+            messagesContainer.innerHTML = '<div class="message ai">Hallo! Ich bin bereit, Ihnen zu helfen. Wie kann ich Sie unterstützen?</div>';
+            
+            document.getElementById('chatOverlay').style.display = 'flex';
+            document.getElementById('chatInput').focus();
+        }
+
+        function closeChat() {
+            document.getElementById('chatOverlay').style.display = 'none';
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message
+            addMessage(message, 'user');
+            input.value = '';
+            
+            // Disable send button and show typing indicator
+            const sendBtn = document.getElementById('sendBtn');
+            const typingIndicator = document.getElementById('typingIndicator');
+            sendBtn.disabled = true;
+            typingIndicator.style.display = 'block';
+            
+            try {
+                const response = await callOpenWebUI(message);
+                addMessage(response, 'ai');
+            } catch (error) {
+                console.error('API Error:', error);
+                addMessage('Entschuldigung, es gab einen Fehler bei der Verbindung zur API. Bitte überprüfen Sie Ihre Konfiguration.', 'ai');
+            }
+            
+            // Re-enable send button and hide typing indicator
+            sendBtn.disabled = false;
+            typingIndicator.style.display = 'none';
+        }
+
+        function addMessage(text, sender) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            messageDiv.textContent = text;
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            // Store message in history
+            messages.push({ role: sender === 'user' ? 'user' : 'assistant', content: text });
+        }
+
+        async function callOpenWebUI(message) {
+            const apiUrl = document.getElementById('apiUrl').value || 'https://kr.assistantos.de';
+            const apiKey = document.getElementById('apiKey').value;
+            
+            console.log('API Call Details:', {
+                url: `${apiUrl}/api/chat/completions`,
+                model: currentModel,
+                hasApiKey: !!apiKey
+            });
+            
+            // Prepare system prompt based on avatar type
+            let systemPrompt = '';
+            switch(currentChatType) {
+                case 'narrative':
+                    systemPrompt = 'Du bist ein Narrative Assistant, der bei Storytelling, Kommunikation und narrativer Entwicklung hilft. Du unterstützt Unternehmen und Personen dabei, ihre Geschichten wirkungsvoll zu erzählen und zu kommunizieren.';
+                    break;
+                case 'csrd':
+                    systemPrompt = 'Du bist ein CSRD Assistant und Experte für Nachhaltigkeitsberichterstattung. Du hilfst bei der Umsetzung der Corporate Sustainability Reporting Directive (CSRD) und berätst zu allen Aspekten der Nachhaltigkeitsberichterstattung.';
+                    break;
+                case 'adoption':
+                    systemPrompt = 'Du bist ein Adoption Assistant, der bei Veränderungsprozessen, Technologie-Adoption und organisatorischer Transformation unterstützt. Du hilfst dabei, Veränderungen erfolgreich zu implementieren und Teams bei der Anpassung zu begleiten.';
+                    break;
+            }
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            
+            if (apiKey) {
+                // JWT Token mit Bearer Prefix
+                headers['Authorization'] = `Bearer ${apiKey}`;
+            }
+            
+            // Prepare messages for API
+            const apiMessages = [
+                { role: 'system', content: systemPrompt },
+                ...messages,
+                { role: 'user', content: message }
+            ];
+            
+            const requestBody = {
+                model: currentModel,
+                messages: apiMessages,
+                stream: false,
+                temperature: 0.7,
+                max_tokens: 1000
+            };
+            
+            console.log('Request:', requestBody);
+            
+            try {
+                const response = await fetch(`${apiUrl}/api/chat/completions`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(requestBody),
+                    mode: 'cors' // Explizit CORS mode setzen
+                });
+                
+                console.log('Response Status:', response.status);
+                console.log('Response Headers:', [...response.headers.entries()]);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error Response:', errorText);
+                    
+                    // Bessere Fehlerbehandlung für JWT-spezifische Probleme
+                    if (response.status === 401) {
+                        throw new Error('Authentifizierung fehlgeschlagen. JWT Token möglicherweise abgelaufen oder ungültig.');
+                    } else if (response.status === 403) {
+                        throw new Error('Zugriff verweigert. JWT Token hat möglicherweise nicht die erforderlichen Berechtigungen.');
+                    } else if (response.status === 404) {
+                        throw new Error('API Endpoint nicht gefunden. Überprüfen Sie die API URL.');
+                    } else {
+                        throw new Error(`HTTP Error ${response.status}: ${errorText}`);
+                    }
+                }
+                
+                const data = await response.json();
+                console.log('Response Data:', data);
+                return data.choices[0].message.content;
+                
+            } catch (fetchError) {
+                console.error('Fetch Error Details:', fetchError);
+                
+                if (fetchError.name === 'TypeError' && fetchError.message.includes('Failed to fetch')) {
+                    throw new Error(`
+Verbindungsfehler zur API (CORS oder Netzwerk):
+• Überprüfen Sie die API-URL: ${apiUrl}
+• Ist Open WebUI erreichbar?
+• Browser-Konsole für Details öffnen
+• Möglicherweise CORS-Problem - siehe Dokumentation
+                    `.trim());
+                } else {
+                    throw fetchError;
+                }
+            }
+        }
+
+        // Handle Enter key in chat input
+        document.getElementById('chatInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Close chat overlay when clicking outside
+        document.getElementById('chatOverlay').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeChat();
+            }
+        });
+
+        // Initialize model badges on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateAvatarModels();
+        });
+    </script>
+</body>
+</html>

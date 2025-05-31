@@ -1,0 +1,6 @@
+.env
+.env
+
+# Data files (persistierte Assistenten und andere Daten)
+data/
+data/*.json
