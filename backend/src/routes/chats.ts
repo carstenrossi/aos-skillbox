@@ -1,355 +1,146 @@
-import dotenv from 'dotenv';
-import { Router, Request, Response } from 'express';
+import express from 'express';
 import axios from 'axios';
-import { assistantModel, Assistant } from '../models/Assistant';
+import { getAssistantModel } from '../models/AssistantSQLite';
 
 // Load environment variables first
-dotenv.config();
-
-const router = Router();
-
-// AssistantOS Configuration
-const ASSISTANT_OS_API_URL = process.env.ASSISTANT_OS_API_URL || 'https://kr.assistantos.de';
-const ASSISTANT_OS_API_KEY = process.env.ASSISTANT_OS_API_KEY;
-
-// Security check: Ensure API key is provided via environment variable (als Fallback)
-if (!ASSISTANT_OS_API_KEY) {
-  console.warn('⚠️  WARNING: ASSISTANT_OS_API_KEY environment variable not set. Using assistant-specific tokens only.');
+if (process.env.NODE_ENV !== 'production') {
+  const dotenv = require('dotenv');
+  dotenv.config();
 }
 
-interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-  images?: string[];
-  conversationId?: string;
-}
+const router = express.Router();
 
-interface ChatRequest {
-  message: string;
-  assistantId: string;
-  conversationId?: string;
-  files?: Array<{
-    name: string;
-    url: string;
-    type: string;
-  }>;
-}
+// Mock function to simulate conversation creation
+const createConversation = async (assistantId: string): Promise<string> => {
+  const conversationId = `conv_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+  console.log(`🗨️  Created conversation: ${conversationId} for assistant: ${assistantId}`);
+  return conversationId;
+};
 
-interface ConversationRequest {
-  assistantId: string;
-  title?: string;
-}
-
-// Get all conversations
-router.get('/', async (req: Request, res: Response) => {
+// POST /api/conversations - Neue Unterhaltung erstellen
+router.post('/', async (req, res) => {
   try {
-    const response = await axios.get(`${ASSISTANT_OS_API_URL}/conversations`, {
-      headers: {
-        'Authorization': `Bearer ${ASSISTANT_OS_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: 10000,
-    });
-
-    res.json({
-      success: true,
-      conversations: (response.data as any)?.conversations || [],
-    });
-  } catch (error: any) {
-    console.error('Error fetching conversations:', error);
+    const { assistantId } = req.body;
     
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch conversations',
-      details: error?.response?.data || error?.message || String(error),
-    });
-  }
-});
-
-// Create new conversation (simplified for OpenAI-compatible API)
-router.post('/', async (req: Request, res: Response) => {
-  try {
-    const { assistantId, title }: ConversationRequest = req.body;
-
     if (!assistantId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Assistant ID is required',
-      });
+      return res.status(400).json({ error: 'Assistant ID is required' });
     }
-
-    // For OpenAI-compatible API, we'll create a simple conversation object
-    const conversationId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Get assistant from SQLite database
+    const assistantModel = getAssistantModel();
+    const assistant = await assistantModel.findById(assistantId);
+    
+    if (!assistant) {
+      return res.status(404).json({ error: 'Assistant not found' });
+    }
+    
+    // Create conversation
+    const conversationId = await createConversation(assistantId);
     
     return res.json({
       success: true,
       conversation: {
         id: conversationId,
         assistantId,
-        title: title || `Conversation with Assistant ${assistantId}`,
-        created: new Date().toISOString(),
-      },
+        assistantName: assistant.name,
+        title: `Conversation with ${assistant.name}`,
+        created: new Date().toISOString()
+      }
     });
-  } catch (error: any) {
+    
+  } catch (error) {
     console.error('Error creating conversation:', error);
-    
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to create conversation',
-      details: error?.response?.data || error?.message || String(error),
-    });
+    return res.status(500).json({ error: 'Failed to create conversation' });
   }
 });
 
-// Get conversation messages
-router.get('/:conversationId/messages', async (req: Request, res: Response) => {
+// POST /api/conversations/:conversationId/messages - Nachricht senden
+router.post('/:conversationId/messages', async (req, res) => {
   try {
     const { conversationId } = req.params;
-
-    const response = await axios.get(`${ASSISTANT_OS_API_URL}/conversations/${conversationId}/messages`, {
-      headers: {
-        'Authorization': `Bearer ${ASSISTANT_OS_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: 10000,
-    });
-
-    res.json({
-      success: true,
-      messages: (response.data as any)?.messages || [],
-    });
-  } catch (error: any) {
-    console.error('Error fetching messages:', error);
+    const { message, assistantId } = req.body;
     
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch messages',
-      details: error?.response?.data || error?.message || String(error),
-    });
-  }
-});
-
-// Send message using OpenAI-compatible chat completions endpoint
-router.post('/:conversationId/messages', async (req: Request, res: Response) => {
-  try {
-    const { conversationId } = req.params;
-    const { message, assistantType, model, files }: { 
-      message: string; 
-      assistantType?: string; 
-      model?: string;
-      files?: any[] 
-    } = req.body;
-
-    if (!message) {
-      return res.status(400).json({
-        success: false,
-        error: 'Message is required',
-      });
+    if (!message || !assistantId) {
+      return res.status(400).json({ error: 'Message and assistant ID are required' });
     }
-
-    // Finde den Assistenten basierend auf assistantType (oder verwende assistantType als ID)
-    let assistant: Assistant | null = null;
-    if (assistantType) {
-      // Versuche zuerst nach ID, dann nach Name
-      assistant = await assistantModel.findById(assistantType) || 
-                  await assistantModel.findByName(assistantType);
-    }
-
-    // Fallback auf den ersten aktiven Assistenten, wenn nichts gefunden wurde
+    
+    // Get assistant from SQLite database
+    const assistantModel = getAssistantModel();
+    const assistant = await assistantModel.findById(assistantId);
+    
     if (!assistant) {
-      const activeAssistants = await assistantModel.findAllActive();
-      if (activeAssistants.length > 0) {
-        assistant = activeAssistants[0];
-        console.log(`🔄 Using fallback assistant: ${assistant.name}`);
-      }
+      return res.status(404).json({ error: 'Assistant not found' });
     }
-
-    // Determine model and get JWT token from assistant
-    let modelName = model || 'gpt-4';
-    let jwtToken = ASSISTANT_OS_API_KEY || '';
-    let apiUrl = ASSISTANT_OS_API_URL;
-
-    if (assistant) {
-      modelName = model || assistant.model_name;
-      jwtToken = assistant.jwt_token || ASSISTANT_OS_API_KEY || '';
-      apiUrl = assistant.api_url || ASSISTANT_OS_API_URL;
-      
-      console.log(`🤖 Using assistant: ${assistant.display_name} (${assistant.name})`);
-      console.log(`🔗 API URL: ${apiUrl}`);
-      console.log(`🔑 Using JWT token: ${jwtToken ? '***' + jwtToken.slice(-4) : 'NOT CONFIGURED'}`);
-    } else {
-      console.warn('⚠️  No assistant configuration found, using defaults');
-    }
-
-    if (!jwtToken) {
-      return res.status(500).json({
-        success: false,
-        error: 'JWT Token not configured for this assistant',
-        details: 'Please configure a JWT token for this assistant in the admin panel'
-      });
-    }
-
-    // Map legacy assistant types for backward compatibility
-    switch(assistantType) {
-      case 'narrative':
-        modelName = model || 'narrative-coach';
-        break;
-      case 'csrd':
-        modelName = model || 'csrd-coach';
-        break;
-      case 'adoption':
-        modelName = model || 'adoption-coach';
-        break;
-    }
-
-    // Send only user message - system prompts are configured in AssistantOS
-    const apiMessages = [
-      {
-        role: 'user',
-        content: message,
-      }
-    ];
-
+    
+    console.log(`🤖 Using assistant: ${assistant.name} (${assistantId})`);
+    console.log(`🔗 API URL: ${assistant.api_url}`);
+    console.log(`🔑 Using JWT token: ${assistant.jwt_token ? assistant.jwt_token.substring(0, 10) + '...' : 'None'}`);
+    
+    // Debug: Log the request being sent
     const requestData = {
-      model: modelName,
-      messages: apiMessages,
+      model: assistant.model_name || assistant.name.toLowerCase().replace(/\s+/g, '-'),
+      messages: [
+        {
+          role: 'user',
+          content: message
+        }
+      ],
       max_tokens: 1000,
       temperature: 0.7,
-      stream: false,
+      stream: false
     };
-
-    console.log(`🔧 Request for ${assistantType} model:`, JSON.stringify(requestData, null, 2));
-
-    const response = await axios.post(
-      `${apiUrl}/api/chat/completions`,
-      requestData,
-      {
-        headers: {
-          'Authorization': `Bearer ${jwtToken}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 30000,
+    
+    console.log(`🔧 Request for ${assistantId} model:`, JSON.stringify(requestData, null, 2));
+    
+    try {
+      // Make request to AssistantOS
+      const headers: any = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      };
+      
+      if (assistant.jwt_token) {
+        headers['Authorization'] = `Bearer ${assistant.jwt_token}`;
       }
-    );
-
-    const aiResponse = (response.data as any).choices?.[0]?.message?.content || 'Entschuldigung, ich konnte keine Antwort generieren.';
-
-    return res.json({
-      success: true,
-      message: {
-        id: `msg_${Date.now()}`,
-        role: 'assistant',
-        content: aiResponse,
-        timestamp: new Date().toISOString(),
+      
+      const response = await axios.post(
+        `${assistant.api_url}/api/chat/completions`,
+        requestData,
+        {
+          headers,
+          timeout: 30000
+        }
+      );
+      
+      const aiResponse = response.data as any;
+      
+      return res.json({
+        response: aiResponse.choices?.[0]?.message?.content || 'No response from AI',
         conversationId,
-        model: modelName,
-        assistantType,
-      },
-      conversationId,
-    });
-
-  } catch (error: any) {
-    console.error('Error sending message:', error);
-    
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to send message',
-      details: error?.response?.data || error?.message || String(error),
-    });
-  }
-});
-
-// Non-streaming message endpoint for fallback
-router.post('/messages', async (req: Request, res: Response) => {
-  try {
-    const { message, assistantId, conversationId, files }: ChatRequest = req.body;
-
-    if (!message) {
-      return res.status(400).json({
-        success: false,
-        error: 'Message is required',
+        messageId: `msg_${Date.now()}_${Math.random().toString(36).substring(2)}`,
+        assistantId,
+        timestamp: new Date().toISOString()
       });
-    }
-
-    if (!assistantId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Assistant ID is required',
-      });
-    }
-
-    // If no conversation ID, create a new conversation
-    let targetConversationId = conversationId;
-    if (!targetConversationId) {
-      try {
-        const convResponse = await axios.post(`${ASSISTANT_OS_API_URL}/conversations`, {
-          assistantId,
-          title: `Chat ${new Date().toISOString()}`,
-        }, {
-          headers: {
-            'Authorization': `Bearer ${ASSISTANT_OS_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          timeout: 10000,
-        });
-        targetConversationId = (convResponse.data as any)?.id;
-      } catch (convError) {
-        console.error('Error creating conversation:', convError);
-        return res.status(500).json({
-          success: false,
-          error: 'Failed to create conversation',
+      
+    } catch (apiError: any) {
+      console.error('API Error:', apiError.response?.data || apiError.message);
+      
+      if (apiError.response?.status === 401) {
+        return res.status(401).json({ error: 'Authentication failed with AI service' });
+      } else if (apiError.response?.status === 404) {
+        return res.status(404).json({ error: 'AI service endpoint not found' });
+      } else {
+        return res.status(500).json({ 
+          error: 'AI service error',
+          details: apiError.response?.data || apiError.message
         });
       }
     }
-
-    const requestData = {
-      message,
-      files: files || [],
-      stream: false,
-    };
-
-    const response = await axios.post(
-      `${ASSISTANT_OS_API_URL}/conversations/${targetConversationId}/messages`,
-      requestData,
-      {
-        headers: {
-          'Authorization': `Bearer ${ASSISTANT_OS_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 30000,
-      }
-    );
-
-    return res.json({
-      success: true,
-      message: response.data,
-      conversationId: targetConversationId,
-    });
-
-  } catch (error: any) {
-    console.error('Error sending message:', error);
     
-    if (!res.headersSent) {
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to send message',
-        details: error?.response?.data || error?.message || String(error),
-      });
-    }
-    return; // Add return for case where headers are already sent
+  } catch (error) {
+    console.error('Error sending message:', error);
+    return res.status(500).json({ error: 'Failed to send message' });
   }
-});
-
-// Health check for chat service
-router.get('/health', (req: Request, res: Response) => {
-  res.json({
-    success: true,
-    service: 'Chat API',
-    timestamp: new Date().toISOString(),
-    assistantOsConnected: !!ASSISTANT_OS_API_KEY,
-  });
 });
 
 export default router;

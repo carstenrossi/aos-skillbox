@@ -6,6 +6,7 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import path from 'path';
+import { Server } from 'http';
 
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
@@ -15,11 +16,8 @@ import { logger } from './utils/logger';
 
 // Import routes
 import authRoutes from './routes/auth';
-import skillboxRoutes from './routes/skillboxes';
 import assistantRoutes from './routes/assistants';
 import chatRoutes from './routes/chats';
-import fileRoutes from './routes/files';
-import userRoutes from './routes/users';
 // import adminRoutes from './routes/admin'; // Temporarily disabled
 
 // Load environment variables
@@ -28,6 +26,8 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || 'localhost';
+
+let server: Server;
 
 // Rate limiting
 const limiter = rateLimit({
@@ -70,66 +70,115 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     version: process.env.npm_package_version || '1.0.0',
     environment: process.env.NODE_ENV || 'development',
+    database: 'SQLite connected'
   });
 });
 
 // API routes
 app.use('/api/auth', authRoutes);
-app.use('/api/skillboxes', skillboxRoutes);
 app.use('/api/assistants', assistantRoutes);
 app.use('/api/conversations', chatRoutes);
-app.use('/api/files', fileRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api', chatRoutes);
 // app.use('/api/admin', adminRoutes); // Temporarily disabled
 
 // Error handling middleware
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-// Graceful shutdown
-const gracefulShutdown = (signal: string) => {
-  logger.info(`${signal} received. Starting graceful shutdown...`);
-  process.exit(0);
-};
+// Database imports
+import { connectDatabase, closeDatabase } from './database/database';
+import { runMigrations } from './database/migrations';
+import { getAssistantModel } from './models/AssistantSQLite';
 
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-// Start server
-const startServer = async () => {
+// Database initialization and migration
+const initializeDatabase = async (): Promise<void> => {
   try {
-    // TODO: Connect to database when ready
-    // await connectDatabase();
-    // logger.info('Database connected successfully');
-
-    // TODO: Connect to Redis when ready
-    // await connectRedis();
-    // logger.info('Redis connected successfully');
-
-    // Start the server
-    app.listen(PORT, () => {
-      logger.info(`🚀 Skillbox Backend Server running on http://${HOST}:${PORT}`);
-      logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-      logger.info(`Health check: http://${HOST}:${PORT}/health`);
-    });
+    logger.info('🔧 Initializing SQLite database...');
+    
+    // Connect to database
+    await connectDatabase();
+    
+    // Run migrations
+    await runMigrations();
+    
+    // Create default assistants if database is empty
+    const assistantModel = getAssistantModel();
+    await assistantModel.createDefaultAssistants();
+    
+    logger.info('✅ Database initialization completed');
   } catch (error) {
-    logger.error('Failed to start server:', error);
-    process.exit(1);
+    logger.error('🚨 Error connecting to database:', error);
+    throw error;
   }
 };
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
-});
+// Graceful shutdown
+const gracefulShutdown = async (signal: string): Promise<void> => {
+  logger.info(`${new Date().toISOString().split('T')[1].slice(0, -1)} info: ${signal} received. Starting graceful shutdown...`);
+  
+  if (server) {
+    server.close(async () => {
+      logger.info('🔄 HTTP server closed');
+      
+      try {
+        await closeDatabase();
+        logger.info('✅ Database connection closed');
+        process.exit(0);
+      } catch (error) {
+        logger.error('🚨 Error during shutdown:', error);
+        process.exit(1);
+      }
+    });
+  } else {
+    try {
+      await closeDatabase();
+      process.exit(0);
+    } catch (error) {
+      logger.error('🚨 Error during shutdown:', error);
+      process.exit(1);
+    }
+  }
+};
+
+// Handle shutdown signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  logger.error('Uncaught Exception:', error);
-  process.exit(1);
+  logger.error('🚨 Uncaught Exception:', error);
+  gracefulShutdown('Uncaught Exception');
 });
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('🚨 Unhandled Rejection at:', promise, 'reason:', reason);
+  gracefulShutdown('Unhandled Rejection');
+});
+
+// Start server
+const startServer = async (): Promise<void> => {
+  try {
+    await initializeDatabase();
+    
+    server = app.listen(PORT, () => {
+      logger.info(`${new Date().toISOString().split('T')[1].slice(0, -1)} info: 🚀 Skillbox Backend Server running on http://${HOST}:${PORT}`);
+      logger.info(`${new Date().toISOString().split('T')[1].slice(0, -1)} info: Environment: ${process.env.NODE_ENV || 'development'}`);
+      logger.info(`${new Date().toISOString().split('T')[1].slice(0, -1)} info: Health check: http://${HOST}:${PORT}/health`);
+    });
+    
+    server.on('error', (error: any) => {
+      if (error.code === 'EADDRINUSE') {
+        logger.error(`🚨 Port ${PORT} is already in use`);
+        process.exit(1);
+      } else {
+        throw error;
+      }
+    });
+    
+  } catch (error) {
+    logger.error('🚨 Failed to start server:', error);
+    process.exit(1);
+  }
+};
 
 startServer();
 
