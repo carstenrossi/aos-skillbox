@@ -142,7 +142,7 @@ export interface UserSkillboxAccess {
 export interface Conversation {
   id: string;
   user_id: string;
-  skillbox_id: string;
+  skillbox_id?: string; // Optional for now - no multi-tenancy yet
   assistant_id: string;
   title: string;
   is_active: boolean;
@@ -173,7 +173,7 @@ export interface MessageFile {
 }
 
 export interface CreateConversationRequest {
-  skillbox_id: string;
+  skillbox_id?: string; // Optional for now - no multi-tenancy yet
   assistant_id: string;
   title?: string;
 }

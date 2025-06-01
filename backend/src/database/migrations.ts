@@ -64,6 +64,95 @@ export const migrations: Migration[] = [
     down: `
       DELETE FROM assistants;
     `
+  },
+  {
+    version: 4,
+    name: 'create_users_table',
+    up: `
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        first_name TEXT,
+        last_name TEXT,
+        role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'manager', 'admin')),
+        is_active BOOLEAN DEFAULT 1,
+        is_admin BOOLEAN DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        last_login DATETIME
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+      CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+      CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_users_is_active;
+      DROP INDEX IF EXISTS idx_users_role;
+      DROP INDEX IF EXISTS idx_users_email;
+      DROP INDEX IF EXISTS idx_users_username;
+      DROP TABLE IF EXISTS users;
+    `
+  },
+  {
+    version: 5,
+    name: 'create_conversations_table',
+    up: `
+      CREATE TABLE IF NOT EXISTS conversations (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        assistant_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        is_active BOOLEAN DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        last_message_at DATETIME,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (assistant_id) REFERENCES assistants(id) ON DELETE CASCADE
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id);
+      CREATE INDEX IF NOT EXISTS idx_conversations_assistant_id ON conversations(assistant_id);
+      CREATE INDEX IF NOT EXISTS idx_conversations_created_at ON conversations(created_at);
+      CREATE INDEX IF NOT EXISTS idx_conversations_last_message_at ON conversations(last_message_at);
+      CREATE INDEX IF NOT EXISTS idx_conversations_is_active ON conversations(is_active);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_conversations_is_active;
+      DROP INDEX IF EXISTS idx_conversations_last_message_at;
+      DROP INDEX IF EXISTS idx_conversations_created_at;
+      DROP INDEX IF EXISTS idx_conversations_assistant_id;
+      DROP INDEX IF EXISTS idx_conversations_user_id;
+      DROP TABLE IF EXISTS conversations;
+    `
+  },
+  {
+    version: 6,
+    name: 'create_messages_table',
+    up: `
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+        content TEXT NOT NULL,
+        metadata TEXT, -- JSON string for additional data
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
+      CREATE INDEX IF NOT EXISTS idx_messages_role ON messages(role);
+      CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_messages_created_at;
+      DROP INDEX IF EXISTS idx_messages_role;
+      DROP INDEX IF EXISTS idx_messages_conversation_id;
+      DROP TABLE IF EXISTS messages;
+    `
   }
 ];
 

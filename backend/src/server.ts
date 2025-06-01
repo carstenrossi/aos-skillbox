@@ -17,7 +17,7 @@ import { logger } from './utils/logger';
 // Import routes
 import authRoutes from './routes/auth';
 import assistantRoutes from './routes/assistants';
-import chatRoutes from './routes/chats';
+import conversationRoutes from './routes/conversations';
 import adminRoutes from './routes/admin';
 
 // Load environment variables
@@ -29,10 +29,10 @@ const HOST = process.env.HOST || 'localhost';
 
 let server: Server;
 
-// Rate limiting
+// Rate limiting - mehr permissiv für Entwicklung
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // limit each IP to 100 requests per windowMs
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000'), // 1 minute instead of 15
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '1000'), // 1000 requests instead of 100
   message: {
     error: 'Too many requests from this IP, please try again later.',
   },
@@ -77,7 +77,7 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/assistants', assistantRoutes);
-app.use('/api/conversations', chatRoutes);
+app.use('/api/conversations', conversationRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Error handling middleware
