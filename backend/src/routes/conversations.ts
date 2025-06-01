@@ -427,14 +427,48 @@ router.post('/:id/messages', authenticateToken as any, async (req: Request, res:
         headers['Authorization'] = `Bearer ${assistant.jwt_token}`;
       }
 
-      const response = await axios.post(
-        `${assistant.api_url}/api/chat/completions`,
-        requestData,
-        {
-          headers,
-          timeout: 30000
+      console.log(`🤖 Using assistant: ${assistant.display_name} (${assistant.id})`);
+      console.log(`🔗 API URL: ${assistant.api_url}`);
+      console.log(`🔑 Using JWT token: ${assistant.jwt_token ? assistant.jwt_token.substring(0, 20) + '...' : 'None'}`);
+      console.log(`🔧 Request for ${assistant.id} model:`, JSON.stringify(requestData, null, 2));
+
+      // Retry mechanism for API calls
+      let response;
+      let lastError;
+      const maxRetries = 3;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          response = await axios.post(
+            `${assistant.api_url}/api/chat/completions`,
+            requestData,
+            {
+              headers,
+              timeout: 30000
+            }
+          );
+          break; // Success, exit retry loop
+        } catch (retryError: any) {
+          lastError = retryError;
+          console.error(`API attempt ${attempt}/${maxRetries} failed:`, retryError.response?.data || retryError.message);
+          
+          // Don't retry on authentication errors or client errors (4xx)
+          if (retryError.response?.status >= 400 && retryError.response?.status < 500) {
+            break;
+          }
+          
+          // Wait before retry (exponential backoff)
+          if (attempt < maxRetries) {
+            const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+            console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+          }
         }
-      );
+      }
+
+      if (!response) {
+        throw lastError;
+      }
 
       const aiResponse = response.data as any;
       const assistantResponseContent = aiResponse.choices?.[0]?.message?.content || 'No response from AI';
@@ -459,7 +493,7 @@ router.post('/:id/messages', authenticateToken as any, async (req: Request, res:
       });
 
     } catch (apiError: any) {
-      console.error('AssistantOS API Error:', apiError.response?.data || apiError.message);
+      console.error('Final API Error after retries:', apiError.response?.data || apiError.message);
       
       // Save error message
       await messageModel.create({
@@ -468,14 +502,15 @@ router.post('/:id/messages', authenticateToken as any, async (req: Request, res:
         content: 'Es tut mir leid, ich kann momentan nicht antworten. Bitte versuchen Sie es später erneut.',
         metadata: {
           error: true,
-          error_message: apiError.message
+          error_message: apiError.message,
+          error_status: apiError.response?.status
         }
       });
 
       if (apiError.response?.status === 401) {
-        return res.status(500).json({
+        return res.status(401).json({
           success: false,
-          error: { message: 'Authentication failed with AI service' },
+          error: { message: 'Authentication failed with AI service - Please check JWT token' },
           timestamp: new Date().toISOString()
         });
       } else if (apiError.response?.status === 404) {
@@ -484,12 +519,18 @@ router.post('/:id/messages', authenticateToken as any, async (req: Request, res:
           error: { message: 'AI service endpoint not found' },
           timestamp: new Date().toISOString()
         });
+      } else if (apiError.response?.status >= 500) {
+        return res.status(502).json({
+          success: false,
+          error: { message: 'AI service temporarily unavailable' },
+          timestamp: new Date().toISOString()
+        });
       } else {
         return res.status(500).json({
           success: false,
           error: { 
             message: 'AI service error',
-            details: apiError.response?.data || apiError.message
+            details: apiError.response?.data?.detail || apiError.message
           },
           timestamp: new Date().toISOString()
         });
