@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AuthenticatedRequest, JWTPayload, UserRole } from '../types';
-import { userModel } from '../models/User';
+import { getUserModel } from '../models/UserSQLite';
 import RoleService from '../services/roleService';
 import expressRateLimit from 'express-rate-limit';
 
@@ -35,7 +35,7 @@ export const authenticateToken = async (req: AuthenticatedRequest, res: Response
     const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
     
     // Check if user still exists and is active
-    const user = await userModel.findById(decoded.userId);
+    const user = await getUserModel().findById(decoded.userId);
     if (!user || !user.is_active) {
       res.status(401).json({
         success: false,
@@ -167,7 +167,7 @@ export const optionalAuth = async (req: AuthenticatedRequest, res: Response, nex
 
     if (token) {
       const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
-      const user = await userModel.findById(decoded.userId);
+      const user = await getUserModel().findById(decoded.userId);
       
       if (user && user.is_active) {
         req.user = {
@@ -192,7 +192,13 @@ export const optionalAuth = async (req: AuthenticatedRequest, res: Response, nex
 /**
  * Simple rate limiting middleware
  */
-export const customRateLimit = (maxRequests: number = 100, windowMs: number = 15 * 60 * 1000): any => {
+export const customRateLimit = (maxRequests: number = 1000, windowMs: number = 60 * 1000): any => {
+  // In development mode, be much more permissive
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+  
+  const finalMaxRequests = isDevelopment ? maxRequests * 10 : maxRequests; // 10x more requests in dev
+  const finalWindowMs = isDevelopment ? Math.min(windowMs, 60 * 1000) : windowMs; // Max 1 minute window in dev
+  
   return (req: Request, res: Response, next: NextFunction): void => {
     const clientId = req.ip || 'unknown';
     const now = Date.now();
@@ -203,22 +209,23 @@ export const customRateLimit = (maxRequests: number = 100, windowMs: number = 15
       // Reset or initialize
       rateLimitStore.set(clientId, {
         count: 1,
-        resetTime: now + windowMs
+        resetTime: now + finalWindowMs
       });
       next();
       return;
     }
     
-    if (clientData.count >= maxRequests) {
+    if (clientData.count >= finalMaxRequests) {
       res.status(429).json({
         success: false,
         error: {
           message: 'Too many requests',
           code: 'RATE_LIMIT_EXCEEDED',
           details: {
-            limit: maxRequests,
-            windowMs: windowMs,
-            resetAt: new Date(clientData.resetTime).toISOString()
+            limit: finalMaxRequests,
+            windowMs: finalWindowMs,
+            resetAt: new Date(clientData.resetTime).toISOString(),
+            environment: process.env.NODE_ENV || 'development'
           }
         },
         timestamp: new Date().toISOString()

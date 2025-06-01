@@ -18,6 +18,10 @@ export class Database {
     this.config = config;
   }
 
+  get instance(): sqlite3.Database | null {
+    return this.db;
+  }
+
   async connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       const dbPath = path.resolve(this.config.filename);

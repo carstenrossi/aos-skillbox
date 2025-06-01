@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
 import { AuthenticatedRequest, CreateUserRequest, UserRole } from '../types';
-import { userModel } from '../models/User';
-import emailService from '../services/emailService';
-import passwordService from '../services/passwordService';
+import { User } from '../types';
 import auditService from '../services/auditService';
+import passwordService from '../services/passwordService';
+import emailService from '../services/emailService';
 import { body, validationResult } from 'express-validator';
+import { getUserModel } from '../models/UserSQLite';
 
 export class AdminController {
   // Create user by admin
@@ -57,7 +58,7 @@ export class AdminController {
       }
 
       // Create user
-      const newUser = await userModel.create(userData);
+      const newUser = await getUserModel().create(userData);
 
       // Log admin action
       await auditService.logAdminAction({
@@ -87,7 +88,7 @@ export class AdminController {
       }
 
       // Return user without password
-      const safeUser = userModel.getSafeUser(newUser);
+      const safeUser = getUserModel().getSafeUser(newUser);
 
       res.status(201).json({
         success: true,
@@ -128,8 +129,8 @@ export class AdminController {
         sortOrder = 'desc'
       } = req.query;
 
-      const users = await userModel.list(Number(limit), (Number(page) - 1) * Number(limit));
-      const totalUsers = await userModel.count();
+      const users = await getUserModel().list(Number(limit), (Number(page) - 1) * Number(limit));
+      const totalUsers = await getUserModel().count();
 
       // Filter if needed
       let filteredUsers = users;
@@ -152,7 +153,7 @@ export class AdminController {
       }
 
       // Remove passwords
-      const safeUsers = filteredUsers.map(user => userModel.getSafeUser(user));
+      const safeUsers = filteredUsers.map(user => getUserModel().getSafeUser(user));
 
       res.status(200).json({
         success: true,
@@ -201,7 +202,7 @@ export class AdminController {
         return;
       }
 
-      const updatedUser = await userModel.updateUserRole(userId, role as UserRole, adminUser.userId);
+      const updatedUser = await getUserModel().updateUserRole(userId, role as UserRole, adminUser.userId);
       
       if (!updatedUser) {
         res.status(404).json({
@@ -235,7 +236,7 @@ export class AdminController {
         console.error('Failed to send role change notification:', emailError);
       }
 
-      const safeUser = userModel.getSafeUser(updatedUser);
+      const safeUser = getUserModel().getSafeUser(updatedUser);
 
       res.status(200).json({
         success: true,
@@ -292,7 +293,7 @@ export class AdminController {
         return;
       }
 
-      const targetUser = await userModel.findById(userId);
+      const targetUser = await getUserModel().findById(userId);
       if (!targetUser) {
         res.status(404).json({
           success: false,
@@ -306,7 +307,7 @@ export class AdminController {
       }
 
       // Update password
-      await userModel.updatePassword(userId, newPassword);
+      await getUserModel().updatePassword(userId, newPassword);
 
       // Log admin action (CRITICAL - always log password resets)
       await auditService.logAdminAction({
@@ -364,7 +365,7 @@ export class AdminController {
       const { isActive } = req.body;
       const adminUser = req.user!;
 
-      const targetUser = await userModel.findById(userId);
+      const targetUser = await getUserModel().findById(userId);
       if (!targetUser) {
         res.status(404).json({
           success: false,
@@ -377,7 +378,7 @@ export class AdminController {
         return;
       }
 
-      const updatedUser = await userModel.update(userId, { is_active: isActive });
+      const updatedUser = await getUserModel().update(userId, { is_active: isActive });
 
       // Log admin action
       await auditService.logAdminAction({
@@ -399,7 +400,7 @@ export class AdminController {
         console.error('Failed to send account status notification:', emailError);
       }
 
-      const safeUser = userModel.getSafeUser(updatedUser!);
+      const safeUser = getUserModel().getSafeUser(updatedUser!);
 
       res.status(200).json({
         success: true,

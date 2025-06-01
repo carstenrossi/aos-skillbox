@@ -6,6 +6,7 @@ import passwordService from '../services/passwordService';
 import { authenticateToken, requireAdmin, customRateLimit } from '../middleware/auth';
 import { AuthenticatedRequest } from '../types';
 import { body, query, validationResult } from 'express-validator';
+import { getUserModel } from '../models/UserSQLite';
 
 const router = Router();
 
@@ -13,8 +14,8 @@ const router = Router();
 router.use(authenticateToken as any);
 router.use(requireAdmin as any);
 
-// Apply rate limiting to admin routes (more restrictive)
-router.use(customRateLimit(100, 15 * 60 * 1000) as any); // 100 requests per 15 minutes
+// Apply rate limiting to admin routes - more permissive for development
+router.use(customRateLimit(1000, 5 * 60 * 1000) as any); // 1000 requests per 5 minutes (will be 10000 in dev)
 
 // User Management Routes
 
@@ -33,8 +34,7 @@ router.get('/users', [
 // GET /api/admin/users/:userId - Get specific user
 router.get('/users/:userId', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userModel } = await import('../models/User');
-    const user = await userModel.findById(req.params.userId);
+    const user = await getUserModel().findById(req.params.userId);
     
     if (!user) {
       res.status(404).json({
@@ -48,7 +48,7 @@ router.get('/users/:userId', async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const safeUser = userModel.getSafeUser(user);
+    const safeUser = getUserModel().getSafeUser(user);
     
     res.status(200).json({
       success: true,
@@ -86,14 +86,13 @@ router.put('/users/:userId/status', [
   body('isActive').isBoolean().withMessage('isActive is required and must be boolean'),
 ], adminController.toggleUserStatus as any);
 
-// DELETE /api/admin/users/:userId - Delete user (soft delete)
+// DELETE /api/admin/users/:userId - Delete user (hard delete)
 router.delete('/users/:userId', async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
     const adminUser = (req as unknown as AuthenticatedRequest).user!;
-    const { userModel } = await import('../models/User');
 
-    const targetUser = await userModel.findById(userId);
+    const targetUser = await getUserModel().findById(userId);
     if (!targetUser) {
       res.status(404).json({
         success: false,
@@ -119,8 +118,20 @@ router.delete('/users/:userId', async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    // Soft delete by deactivating
-    await userModel.update(userId, { is_active: false });
+    // Hard delete the user
+    const deleted = await getUserModel().delete(userId);
+
+    if (!deleted) {
+      res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to delete user from database',
+          code: 'DATABASE_DELETE_FAILED',
+        },
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
 
     // Log critical admin action
     await auditService.logAdminAction({
@@ -146,7 +157,7 @@ router.delete('/users/:userId', async (req: Request, res: Response): Promise<voi
 
     res.status(200).json({
       success: true,
-      message: 'User deactivated successfully',
+      message: 'User deleted successfully',
       timestamp: new Date().toISOString(),
     });
 

@@ -153,6 +153,37 @@ export const migrations: Migration[] = [
       DROP INDEX IF EXISTS idx_messages_conversation_id;
       DROP TABLE IF EXISTS messages;
     `
+  },
+  {
+    version: 7,
+    name: 'recreate_users_table_with_correct_schema',
+    up: `
+      -- Drop existing users table and recreate with correct schema
+      DROP TABLE IF EXISTS users;
+      
+      CREATE TABLE users (
+        id TEXT PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        first_name TEXT,
+        last_name TEXT,
+        role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'manager', 'admin')),
+        is_active BOOLEAN DEFAULT 1,
+        is_admin BOOLEAN DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        last_login DATETIME
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+      CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+      CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active);
+    `,
+    down: `
+      DROP TABLE IF EXISTS users;
+    `
   }
 ];
 
@@ -269,4 +300,4 @@ export const runMigrations = async (): Promise<void> => {
 
 export const createMigrationManager = (database: Database): MigrationManager => {
   return new MigrationManager(database);
-}; 
+};

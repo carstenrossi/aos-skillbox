@@ -1,15 +1,16 @@
+import express from 'express';
 import { Router, Request, Response } from 'express';
 import authService from '../services/authService';
 import { CreateUserRequest, LoginRequest } from '../types';
-import { userModel } from '../models/User';
 import RoleService from '../services/roleService';
 import { AuthenticatedRequest, UserRole } from '../types';
 import { authenticateToken, requireAdmin, requireRole, customRateLimit } from '../middleware/auth';
+import { getUserModel } from '../models/UserSQLite';
 
 const router = Router();
 
-// Apply rate limiting to all auth routes
-router.use(customRateLimit(50, 15 * 60 * 1000)); // 50 requests per 15 minutes
+// Apply rate limiting to all auth routes - more permissive for development
+router.use(customRateLimit(500, 5 * 60 * 1000)); // 500 requests per 5 minutes (will be 5000 in dev)
 
 // POST /api/auth/login
 router.post('/login', async (req: Request, res: Response): Promise<void> => {

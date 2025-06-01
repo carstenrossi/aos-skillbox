@@ -19,6 +19,7 @@ import authRoutes from './routes/auth';
 import assistantRoutes from './routes/assistants';
 import conversationRoutes from './routes/conversations';
 import adminRoutes from './routes/admin';
+import { toolsRouter } from './routes/tools';
 
 // Load environment variables
 dotenv.config();
@@ -79,6 +80,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/assistants', assistantRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/tools', toolsRouter);
 
 // Error handling middleware
 app.use(notFoundHandler);
@@ -87,7 +89,9 @@ app.use(errorHandler);
 // Database imports
 import { connectDatabase, closeDatabase } from './database/database';
 import { runMigrations } from './database/migrations';
+import { getUserModel } from './models/UserSQLite';
 import { getAssistantModel } from './models/AssistantSQLite';
+import { getBackupService } from './services/backupService';
 
 // Database initialization and migration
 const initializeDatabase = async (): Promise<void> => {
@@ -95,48 +99,51 @@ const initializeDatabase = async (): Promise<void> => {
     logger.info('🔧 Initializing SQLite database...');
     
     // Connect to database
-    await connectDatabase();
+    const database = await connectDatabase();
     
     // Run migrations
     await runMigrations();
+    
+    // Initialize User Model with database connection
+    const userModel = getUserModel(database.instance!);
+    
+    // Initialize default users after migrations are complete
+    await userModel.initialize();
     
     // Create default assistants if database is empty
     const assistantModel = getAssistantModel();
     await assistantModel.createDefaultAssistants();
     
+    // Initialize backup service
+    const backupService = getBackupService();
+    await backupService.initialize();
+    
     logger.info('✅ Database initialization completed');
   } catch (error) {
     logger.error('🚨 Error connecting to database:', error);
-    throw error;
+    process.exit(1);
   }
 };
 
 // Graceful shutdown
 const gracefulShutdown = async (signal: string): Promise<void> => {
-  logger.info(`${new Date().toISOString().split('T')[1].slice(0, -1)} info: ${signal} received. Starting graceful shutdown...`);
+  logger.info(`${signal} received. Starting graceful shutdown...`);
+  
+  // Stop backup service
+  const backupService = getBackupService();
+  backupService.stop();
   
   if (server) {
-    server.close(async () => {
+    server.close(() => {
       logger.info('🔄 HTTP server closed');
-      
-      try {
-        await closeDatabase();
-        logger.info('✅ Database connection closed');
-        process.exit(0);
-      } catch (error) {
-        logger.error('🚨 Error during shutdown:', error);
-        process.exit(1);
-      }
     });
-  } else {
-    try {
-      await closeDatabase();
-      process.exit(0);
-    } catch (error) {
-      logger.error('🚨 Error during shutdown:', error);
-      process.exit(1);
-    }
   }
+  
+  // Close database connection
+  await closeDatabase();
+  logger.info('✅ Database connection closed');
+  
+  process.exit(0);
 };
 
 // Handle shutdown signals

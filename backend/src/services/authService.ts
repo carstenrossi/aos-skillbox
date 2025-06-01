@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { User, AuthResponse, JWTPayload } from '../types';
-import userModel from '../models/User';
+import { getUserModel } from '../models/UserSQLite';
 
 // Environment variables with defaults
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
@@ -70,9 +70,9 @@ class AuthService {
 
   async login(username: string, password: string): Promise<AuthResponse> {
     // Find user by username or email
-    let user = await userModel.findByUsername(username);
+    let user = await getUserModel().findByUsername(username);
     if (!user) {
-      user = await userModel.findByEmail(username);
+      user = await getUserModel().findByEmail(username);
     }
 
     if (!user) {
@@ -84,13 +84,13 @@ class AuthService {
     }
 
     // Verify password
-    const isValidPassword = await userModel.verifyPassword(user, password);
+    const isValidPassword = await getUserModel().verifyPassword(user, password);
     if (!isValidPassword) {
       throw new Error('Invalid credentials');
     }
 
     // Update last login
-    await userModel.updateLastLogin(user.id);
+    await getUserModel().updateLastLogin(user.id);
 
     // Generate tokens
     const { accessToken, refreshToken } = this.generateTokens(user);
@@ -98,7 +98,7 @@ class AuthService {
     return {
       token: accessToken,
       refreshToken,
-      user: userModel.getSafeUser(user),
+      user: getUserModel().getSafeUser(user),
     };
   }
 
@@ -124,7 +124,7 @@ class AuthService {
 
     try {
       // Create user
-      const user = await userModel.create(userData);
+      const user = await getUserModel().create(userData);
 
       // Generate tokens
       const { accessToken, refreshToken } = this.generateTokens(user);
@@ -132,7 +132,7 @@ class AuthService {
       return {
         token: accessToken,
         refreshToken,
-        user: userModel.getSafeUser(user),
+        user: getUserModel().getSafeUser(user),
       };
     } catch (error: any) {
       if (error.message.includes('already exists')) {
@@ -154,7 +154,7 @@ class AuthService {
         throw new Error('Invalid token type');
       }
 
-      const user = await userModel.findById(decoded.userId);
+      const user = await getUserModel().findById(decoded.userId);
       if (!user || !user.is_active) {
         throw new Error('User not found or inactive');
       }
@@ -168,7 +168,7 @@ class AuthService {
       return {
         token: accessToken,
         refreshToken: newRefreshToken,
-        user: userModel.getSafeUser(user),
+        user: getUserModel().getSafeUser(user),
       };
     } catch (error) {
       // Remove invalid refresh token
@@ -192,7 +192,7 @@ class AuthService {
   }
 
   async validateUser(userId: string): Promise<User | null> {
-    const user = await userModel.findById(userId);
+    const user = await getUserModel().findById(userId);
     if (!user || !user.is_active) {
       return null;
     }
@@ -206,7 +206,7 @@ class AuthService {
 
   // Password reset functionality (for future implementation)
   async requestPasswordReset(email: string): Promise<void> {
-    const user = await userModel.findByEmail(email);
+    const user = await getUserModel().findByEmail(email);
     if (!user) {
       // Don't reveal if email exists or not
       return;
@@ -223,22 +223,22 @@ class AuthService {
 
   // Admin functions
   async promoteToAdmin(userId: string, promotedBy: string): Promise<void> {
-    const user = await userModel.findById(userId);
+    const user = await getUserModel().findById(userId);
     if (!user) {
       throw new Error('User not found');
     }
 
-    await userModel.update(userId, { is_admin: true });
+    await getUserModel().update(userId, { is_admin: true });
     console.log(`User ${user.username} promoted to admin by ${promotedBy}`);
   }
 
   async deactivateUser(userId: string, deactivatedBy: string): Promise<void> {
-    const user = await userModel.findById(userId);
+    const user = await getUserModel().findById(userId);
     if (!user) {
       throw new Error('User not found');
     }
 
-    await userModel.update(userId, { is_active: false });
+    await getUserModel().update(userId, { is_active: false });
     console.log(`User ${user.username} deactivated by ${deactivatedBy}`);
   }
 }
