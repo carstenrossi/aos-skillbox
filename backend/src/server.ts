@@ -18,7 +18,7 @@ import { logger } from './utils/logger';
 import authRoutes from './routes/auth';
 import assistantRoutes from './routes/assistants';
 import chatRoutes from './routes/chats';
-// import adminRoutes from './routes/admin'; // Temporarily disabled
+import adminRoutes from './routes/admin';
 
 // Load environment variables
 dotenv.config();
@@ -78,7 +78,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/assistants', assistantRoutes);
 app.use('/api/conversations', chatRoutes);
-// app.use('/api/admin', adminRoutes); // Temporarily disabled
+app.use('/api/admin', adminRoutes);
 
 // Error handling middleware
 app.use(notFoundHandler);

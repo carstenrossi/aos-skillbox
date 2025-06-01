@@ -5,8 +5,32 @@ import userModel from '../models/User';
 // Environment variables with defaults
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'your-super-secret-refresh-key-change-this-in-production';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m'; // 15 minutes
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h'; // 24 hours default instead of 15 minutes
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d'; // 7 days
+
+// Helper function to parse time string to seconds
+function parseTimeToSeconds(timeStr: string): number {
+  if (typeof timeStr === 'number') return timeStr;
+  
+  const units: { [key: string]: number } = {
+    's': 1,
+    'm': 60,
+    'h': 3600,
+    'd': 86400,
+    'w': 604800
+  };
+  
+  const match = timeStr.match(/^(\d+)([smhdw]?)$/);
+  if (!match) {
+    // If it's just a number, assume seconds
+    const num = parseInt(timeStr);
+    return isNaN(num) ? 86400 : num; // Default to 24h if invalid
+  }
+  
+  const [, value, unit] = match;
+  const multiplier = units[unit] || 1;
+  return parseInt(value) * multiplier;
+}
 
 // In-memory refresh token storage (später durch Redis ersetzen)
 const refreshTokens = new Set<string>();
@@ -14,6 +38,8 @@ const refreshTokens = new Set<string>();
 class AuthService {
   generateTokens(user: User): { accessToken: string; refreshToken: string } {
     const now = Math.floor(Date.now() / 1000);
+    const expiresInSeconds = parseTimeToSeconds(JWT_EXPIRES_IN);
+    const refreshExpiresInSeconds = parseTimeToSeconds(JWT_REFRESH_EXPIRES_IN);
     
     const payload: JWTPayload = {
       userId: user.id,
@@ -22,7 +48,7 @@ class AuthService {
       role: user.role,
       isAdmin: user.is_admin, // Backward compatibility
       iat: now,
-      exp: now + (15 * 60), // 15 minutes
+      exp: now + expiresInSeconds,
     };
 
     const accessToken = jwt.sign(payload as any, JWT_SECRET as string);
@@ -31,7 +57,7 @@ class AuthService {
       userId: user.id,
       type: 'refresh',
       iat: now,
-      exp: now + (7 * 24 * 60 * 60), // 7 days
+      exp: now + refreshExpiresInSeconds,
     };
     
     const refreshToken = jwt.sign(refreshPayload, JWT_REFRESH_SECRET as string);

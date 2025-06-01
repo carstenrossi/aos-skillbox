@@ -5,8 +5,8 @@ import { userModel } from '../models/User';
 import RoleService from '../services/roleService';
 import expressRateLimit from 'express-rate-limit';
 
-// JWT Configuration
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-production';
+// JWT Configuration - must match AuthService
+const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
 
 // Rate limiting storage (in-memory, später Redis)
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();

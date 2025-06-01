@@ -224,6 +224,11 @@ export interface JWTPayload {
 // Request with authenticated user
 export interface AuthenticatedRequest extends Request {
   user?: JWTPayload;
+  body: any;
+  params: any;
+  query: any;
+  ip: string;
+  get(name: string): string | undefined;
 }
 
 // File upload types
