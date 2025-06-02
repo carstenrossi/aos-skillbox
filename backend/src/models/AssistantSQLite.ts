@@ -317,76 +317,93 @@ export class AssistantModelSQLite {
         return;
       }
       
-      console.log('🏗️  Database empty, migrating from JSON...');
+      console.log('🏗️  Database empty, checking for JSON migration...');
       
       // Try to import from JSON file
       const path = await import('path');
+      const fs = await import('fs');
       const jsonPath = path.join(__dirname, '../../data/assistants.json');
       
-      try {
-        await this.importFromJSON(jsonPath);
-        console.log('🎉 Migration from JSON completed successfully');
-      } catch (jsonError) {
-        console.log('📄 JSON file not found, creating basic default assistants...');
-        
-        // Fallback: Create basic default assistants
-        const defaultAssistants = [
-          {
-            id: '1',
-            name: 'narrative',
-            display_name: 'Narrative Coach',
-            description: 'Ein spezialisierter Assistent für Storytelling, Kommunikation und narrative Entwicklung.',
-            icon: '📖',
-            api_url: 'https://kr.assistantos.de',
-            jwt_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijc1YmE3YTRlLTgzNjAtNDM2Mi1hYTVkLTU5OWI0NWQ0YjAzMCJ9.vMttlVgQPrMH4MjHO4koVFeltGTaqXG9_ds-ZdzrWxY',
-            model_name: 'narrative-coach',
-            system_prompt: 'Du bist ein Narrative Assistant, der bei Storytelling, Kommunikation und narrativer Entwicklung hilft.',
-            is_active: true
-          },
-          {
-            id: '2',
-            name: 'csrd',
-            display_name: 'CSRD Coach',
-            description: 'Experte für Corporate Sustainability Reporting Directive und Nachhaltigkeitsberichterstattung.',
-            icon: '🌱',
-            api_url: 'https://kr.assistantos.de',
-            jwt_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijc1YmE3YTRlLTgzNjAtNDM2Mi1hYTVkLTU5OWI0NWQ0YjAzMCJ9.vMttlVgQPrMH4MjHO4koVFeltGTaqXG9_ds-ZdzrWxY',
-            model_name: 'csrd-coach',
-            system_prompt: 'Du bist ein CSRD-Experte und hilfst bei der Corporate Sustainability Reporting Directive.',
-            is_active: true
-          },
-          {
-            id: '3',
-            name: 'adoption',
-            display_name: 'Adoption Coach',
-            description: 'Unterstützt bei Adoptionsprozessen und Change Management in Organisationen.',
-            icon: '🚀',
-            api_url: 'https://kr.assistantos.de',
-            jwt_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijc1YmE3YTRlLTgzNjAtNDM2Mi1hYTVkLTU5OWI0NWQ0YjAzMCJ9.vMttlVgQPrMH4MjHO4koVFeltGTaqXG9_ds-ZdzrWxY',
-            model_name: 'adoption-coach',
-            system_prompt: 'Du bist ein Adoption Coach, der bei Veränderungsprozessen hilft.',
-            is_active: true
-          },
-          {
-            id: '6f0eb85f-3366-4cc6-83b7-86de15b0562d',
-            name: 'aossupport',
-            display_name: 'AOS Support',
-            description: 'Hilft bei AssistantOS',
-            icon: '🤖',
-            api_url: 'https://kr.assistantos.de',
-            jwt_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijc1YmE3YTRlLTgzNjAtNDM2Mi1hYTVkLTU5OWI0NWQ0YjAzMCJ9.vMttlVgQPrMH4MjHO4koVFeltGTaqXG9_ds-ZdzrWxY',
-            model_name: 'assistantos-support',
-            system_prompt: 'Du bist ein AssistantOS Support-Assistent.',
-            is_active: true
+      // Check if JSON file exists first
+      if (fs.existsSync(jsonPath)) {
+        try {
+          console.log('📄 JSON file found, importing assistants...');
+          await this.importFromJSON(jsonPath);
+          
+          // Verify that assistants were actually created
+          const importedAssistants = await this.findAll();
+          if (importedAssistants.length > 0) {
+            console.log('🎉 Migration from JSON completed successfully');
+            return; // Exit if JSON import was successful
+          } else {
+            console.log('⚠️ JSON import completed but no assistants were created, falling back to defaults...');
           }
-        ];
-        
-        for (const defaultAssistant of defaultAssistants) {
-          await this.create(defaultAssistant);
+        } catch (jsonError) {
+          console.log('❌ Error importing from JSON, falling back to default assistants:', jsonError);
         }
-        
-        console.log('🎉 Default assistants created successfully');
+      } else {
+        console.log('📄 JSON file not found, creating basic default assistants...');
       }
+      
+      // Fallback: Create basic default assistants
+      console.log('🏗️  Creating fallback default assistants...');
+      const defaultAssistants = [
+        {
+          id: '1',
+          name: 'narrative',
+          display_name: 'Narrative Coach',
+          description: 'Ein spezialisierter Assistent für Storytelling, Kommunikation und narrative Entwicklung.',
+          icon: '📖',
+          api_url: 'https://kr.assistantos.de',
+          jwt_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijc1YmE3YTRlLTgzNjAtNDM2Mi1hYTVkLTU5OWI0NWQ0YjAzMCJ9.vMttlVgQPrMH4MjHO4koVFeltGTaqXG9_ds-ZdzrWxY',
+          model_name: 'narrative-coach',
+          system_prompt: 'Du bist ein Narrative Assistant, der bei Storytelling, Kommunikation und narrativer Entwicklung hilft.',
+          is_active: true
+        },
+        {
+          id: '2',
+          name: 'csrd',
+          display_name: 'CSRD Coach',
+          description: 'Experte für Corporate Sustainability Reporting Directive und Nachhaltigkeitsberichterstattung.',
+          icon: '🌱',
+          api_url: 'https://kr.assistantos.de',
+          jwt_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijc1YmE3YTRlLTgzNjAtNDM2Mi1hYTVkLTU5OWI0NWQ0YjAzMCJ9.vMttlVgQPrMH4MjHO4koVFeltGTaqXG9_ds-ZdzrWxY',
+          model_name: 'csrd-coach',
+          system_prompt: 'Du bist ein CSRD-Experte und hilfst bei der Corporate Sustainability Reporting Directive.',
+          is_active: true
+        },
+        {
+          id: '3',
+          name: 'adoption',
+          display_name: 'Adoption Coach',
+          description: 'Unterstützt bei Adoptionsprozessen und Change Management in Organisationen.',
+          icon: '🚀',
+          api_url: 'https://kr.assistantos.de',
+          jwt_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijc1YmE3YTRlLTgzNjAtNDM2Mi1hYTVkLTU5OWI0NWQ0YjAzMCJ9.vMttlVgQPrMH4MjHO4koVFeltGTaqXG9_ds-ZdzrWxY',
+          model_name: 'adoption-coach',
+          system_prompt: 'Du bist ein Adoption Coach, der bei Veränderungsprozessen hilft.',
+          is_active: true
+        },
+        {
+          id: '6f0eb85f-3366-4cc6-83b7-86de15b0562d',
+          name: 'aossupport',
+          display_name: 'AOS Support',
+          description: 'Hilft bei AssistantOS',
+          icon: '🤖',
+          api_url: 'https://kr.assistantos.de',
+          jwt_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijc1YmE3YTRlLTgzNjAtNDM2Mi1hYTVkLTU5OWI0NWQ0YjAzMCJ9.vMttlVgQPrMH4MjHO4koVFeltGTaqXG9_ds-ZdzrWxY',
+          model_name: 'assistantos-support',
+          system_prompt: 'Du bist ein AssistantOS Support-Assistent.',
+          is_active: true
+        }
+      ];
+      
+      for (const defaultAssistant of defaultAssistants) {
+        await this.create(defaultAssistant);
+      }
+      
+      console.log('🎉 Default assistants created successfully');
+      
     } catch (error) {
       console.error('🚨 Error creating default assistants:', error);
       throw error;

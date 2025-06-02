@@ -1,179 +1,153 @@
-# Skillbox AI Assistant Platform
+# Skillbox - AI Assistant Management Platform
 
-Eine moderne Plattform zur Verwaltung und Interaktion mit AI-Assistenten, entwickelt mit React, Node.js und AssistantOS Integration.
+Eine moderne Web-Anwendung zur Verwaltung von AI-Assistenten, Tools und Benutzern.
 
 ## 🚀 Features
 
-- **Multi-Assistant Management**: Verwaltung mehrerer AI-Assistenten mit individuellen Konfigurationen
-- **JWT Token Authentifizierung**: Sichere Authentifizierung für AssistantOS API
-- **Persistent Storage**: Automatische Speicherung von Assistenten-Konfigurationen in JSON-Dateien
-- **Admin Panel**: Vollständige CRUD-Operationen für Assistenten-Verwaltung
-- **Rollenbasierte Authentifizierung**: Admin, Manager und User Rollen
-- **Real-time Chat Interface**: Moderne Chat-Oberfläche mit Streaming-Unterstützung
-- **Responsive Design**: Optimiert für Desktop und Mobile
+- **Assistant Management**: Erstellen, bearbeiten und verwalten Sie AI-Assistenten
+- **Tool Integration**: Externe Tools in die Plattform einbinden
+- **User Management**: Vollständige Benutzerverwaltung mit Rollen (Admin/Manager/User)
+- **Authentication**: Sichere JWT-basierte Authentifizierung
+- **Responsive Design**: Moderne React-Oberfläche mit Tailwind CSS
 
-## 🏗️ Architektur
+## 🏗️ Technologie-Stack
 
-### Frontend (React + TypeScript)
-- **Framework**: React 18 mit TypeScript
-- **Styling**: Tailwind CSS
-- **Icons**: Lucide React
-- **HTTP Client**: Axios
-- **Build Tool**: Create React App
+- **Frontend**: React, TypeScript, Tailwind CSS, Vite
+- **Backend**: Node.js, Express, SQLite
+- **Authentication**: JWT (JSON Web Tokens)
+- **Deployment**: Docker, nginx
 
-### Backend (Node.js + Express)
-- **Framework**: Express.js mit TypeScript
-- **Authentication**: JWT Tokens
-- **Data Storage**: JSON-basierte Persistenz
-- **API Integration**: AssistantOS Chat Completions API
-- **CORS**: Konfiguriert für Frontend-Integration
+## 📦 Quick Start
 
-## 📦 Installation
+### Produktions-Deployment (Elestio)
 
-### Prerequisites
-- Node.js (v18 oder höher)
-- npm oder yarn
+Verwenden Sie die bereitgestellte `docker-compose.prod.yml`:
 
-### Backend Setup
 ```bash
+# Wichtige Umgebungsvariable setzen
+export JWT_SECRET="nUZhjARF7Cy8TdQ8lHzQjXnAK5SibDEjXOYjyXxVrT8="
+
+# Deployment starten
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+**📋 Detaillierte Deployment-Anleitung: [DEPLOYMENT.md](./DEPLOYMENT.md)**
+
+### Lokale Entwicklung
+
+```bash
+# Repository klonen
+git clone [repository-url]
+cd Skillbox
+
+# Backend starten
 cd backend
 npm install
-npm run build
-npm start
-```
+npm run dev
 
-### Frontend Setup
-```bash
+# Frontend starten (neues Terminal)
 cd frontend
 npm install
-npm start
+npm run dev
 ```
+
+## 👥 Standard-Benutzer
+
+Nach dem ersten Start sind folgende Benutzer verfügbar:
+
+| Benutzername | Passwort | Rolle |
+|--------------|----------|-------|
+| admin | admin123 | Admin |
+| manager | manager123 | Manager |
+| user | user123 | User |
 
 ## 🔧 Konfiguration
 
-### Environment Variables
-Erstelle eine `.env` Datei im Backend-Verzeichnis:
+### Wichtige Umgebungsvariablen
 
+```bash
+# Backend (KRITISCH)
+JWT_SECRET=nUZhjARF7Cy8TdQ8lHzQjXnAK5SibDEjXOYjyXxVrT8=
+
+# Optional
+NODE_ENV=production
+CORS_ORIGIN=https://ihre-domain.com
+CORS_CREDENTIALS=true
 ```
-PORT=3001
-NODE_ENV=development
-JWT_SECRET=your-secret-key
-ASSISTANT_OS_API_KEY=your-assistant-os-api-key
-```
-
-### Standard Login-Daten
-- **Admin**: admin / admin123
-- **Manager**: manager / manager123
-- **User**: user / user123
-
-## 🛠️ API Endpoints
-
-### Authentication
-- `POST /api/auth/login` - Benutzer-Login
-
-### Assistants
-- `GET /api/assistants` - Alle Assistenten abrufen
-- `POST /api/assistants` - Neuen Assistenten erstellen
-- `PUT /api/assistants/:id` - Assistenten aktualisieren
-- `DELETE /api/assistants/:id` - Assistenten löschen
-
-### Conversations
-- `POST /api/conversations` - Neue Konversation starten
-- `POST /api/conversations/:id/messages` - Nachricht senden
-
-## 📊 Datenmodell
-
-### Assistant
-```typescript
-interface Assistant {
-  id: string;
-  name: string;
-  display_name: string;
-  description: string;
-  icon: string;
-  api_url: string;
-  jwt_token: string;
-  model_name: string;
-  system_prompt: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-```
-
-## 🔒 Sicherheit
-
-- **JWT Token Verschlüsselung**: Alle API-Tokens werden sicher gespeichert
-- **CORS Konfiguration**: Beschränkt auf Frontend-Domain
-- **Input Validation**: Vollständige Validierung aller API-Eingaben
-- **Rate Limiting**: Schutz vor API-Missbrauch
 
 ## 📁 Projektstruktur
 
 ```
 Skillbox/
-├── backend/
+├── frontend/                 # React Frontend
 │   ├── src/
-│   │   ├── models/          # Datenmodelle
-│   │   ├── routes/          # API Routes
-│   │   ├── middleware/      # Auth & Validation
-│   │   └── server.ts        # Express Server
-│   ├── data/               # JSON Persistenz (gitignored)
-│   └── dist/               # Compiled JS (gitignored)
-├── frontend/
+│   ├── public/
+│   └── package.json
+├── backend/                  # Node.js Backend
 │   ├── src/
-│   │   ├── components/     # React Komponenten
-│   │   ├── hooks/          # Custom Hooks
-│   │   ├── services/       # API Services
-│   │   └── types/          # TypeScript Types
-│   └── build/              # Build Output (gitignored)
-└── README.md
+│   ├── migrations/
+│   └── package.json
+├── docker/                   # Docker Konfiguration
+│   ├── Dockerfile.frontend
+│   └── Dockerfile.backend
+├── docker-compose.prod.yml   # Produktions-Deployment
+├── DEPLOYMENT.md            # Detaillierte Deployment-Anleitung
+└── README.md               # Diese Datei
 ```
 
-## 🚦 Status
+## 🛠️ Entwicklung
 
-✅ **Backend Server**: Läuft auf Port 3001  
-✅ **Frontend Client**: Läuft auf Port 3000  
-✅ **Assistant Management**: Vollständig implementiert  
-✅ **JWT Authentication**: Funktional  
-✅ **Persistent Storage**: Automatische JSON-Speicherung  
-✅ **Chat Interface**: Real-time Kommunikation  
+### Verfügbare Scripts
 
-## 📝 Development Notes
+**Frontend:**
+```bash
+npm run dev          # Entwicklungsserver
+npm run build        # Produktions-Build
+npm run preview      # Preview des Builds
+```
 
-- Alle Assistenten werden automatisch in `backend/data/assistants.json` gespeichert
-- Default-Assistenten werden beim ersten Start erstellt
-- JWT Tokens werden sicher verwaltet und sind nicht im Frontend sichtbar
-- CORS ist für localhost:3000 (Frontend) und localhost:3001 (Backend) konfiguriert
+**Backend:**
+```bash
+npm run dev          # Entwicklungsserver mit nodemon
+npm start           # Produktionsstart
+npm run build       # TypeScript kompilieren
+```
+
+## 🐳 Docker
+
+### Images builden
+
+```bash
+# Backend für Production (linux/amd64)
+docker build --platform linux/amd64 -f docker/Dockerfile.backend -t skillbox-backend .
+
+# Frontend für Production (linux/amd64)  
+docker build --platform linux/amd64 -f docker/Dockerfile.frontend -t skillbox-frontend .
+```
+
+## 📊 Aktuelle Production Images
+
+- **Backend**: `ghcr.io/carstenrossi/skillbox-backend:20250602-134035`
+- **Frontend**: `ghcr.io/carstenrossi/skillbox-frontend:20250602-134457`
 
 ## 🤝 Contributing
 
-Dieses Projekt ist proprietär und akzeptiert keine externen Beiträge. Alle Entwicklungsarbeiten werden intern durchgeführt.
+1. Fork das Repository
+2. Erstelle einen Feature-Branch (`git checkout -b feature/amazing-feature`)
+3. Committe deine Änderungen (`git commit -m 'Add amazing feature'`)
+4. Push zum Branch (`git push origin feature/amazing-feature`)
+5. Öffne einen Pull Request
 
-## 📄 Lizenz
+## 📝 Lizenz
 
-**PROPRIETÄRE SOFTWARE - ALLE RECHTE VORBEHALTEN**
+Dieses Projekt steht unter der [MIT Lizenz](LICENSE).
 
-© 2025 Carsten Rossi. Alle Rechte vorbehalten.
+## 🆘 Support
 
-Diese Software und der zugehörige Quellcode sind proprietäres Eigentum von Carsten Rossi. Die Verwendung, Vervielfältigung, Verteilung oder Modifikation dieser Software ist ohne ausdrückliche schriftliche Genehmigung des Eigentümers strengstens untersagt.
-
-### Nutzungsbedingungen:
-- **Kommerzielle Nutzung**: Ausschließlich mit schriftlicher Genehmigung von Carsten Rossi
-- **Vervielfältigung**: Nur für autorisierte Entwicklungs- und Testzwecke
-- **Modifikation**: Nur durch autorisierte Entwickler gestattet
-- **Verteilung**: Vollständig untersagt ohne Genehmigung
-- **Reverse Engineering**: Strengstens verboten
-
-### Haftungsausschluss:
-Diese Software wird "wie besehen" bereitgestellt, ohne jegliche Gewährleistung. Der Eigentümer übernimmt keine Haftung für Schäden, die durch die Nutzung dieser Software entstehen.
-
-Für Lizenzanfragen oder kommerzielle Nutzung kontaktieren Sie: Carsten Rossi
-
-## 👨‍💻 Author
-
-Entwickelt von Carsten Rossi - AI Assistant Platform
+Bei Problemen:
+1. Prüfen Sie die [Deployment-Dokumentation](./DEPLOYMENT.md)
+2. Schauen Sie in die Container-Logs: `docker logs skillbox-backend-1`
+3. Öffnen Sie ein Issue im GitHub Repository
 
 ---
-
-**Letzte Aktualisierung**: 31. Mai 2025 
+**Status**: ✅ Production Ready | **Letzte Aktualisierung**: 2025-06-02 

@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  skillbox-backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.backend
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - JWT_SECRET=${JWT_SECRET:-your-default-jwt-secret-for-backend-auth}
+    volumes:
+      # Mount lokale Daten direkt (für Development)
+      - ./backend/data:/app/data
+      - ./backend/logs:/app/logs
+    restart: unless-stopped
+
+  skillbox-frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - skillbox-backend
+    restart: unless-stopped
+
+volumes:
+  backend_data:
+  backend_logs: 

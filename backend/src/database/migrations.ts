@@ -184,6 +184,42 @@ export const migrations: Migration[] = [
     down: `
       DROP TABLE IF EXISTS users;
     `
+  },
+  {
+    version: 8,
+    name: 'create_tools_table',
+    up: `
+      CREATE TABLE IF NOT EXISTS tools (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL,
+        url TEXT NOT NULL,
+        icon TEXT NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        is_active BOOLEAN NOT NULL DEFAULT 1,
+        is_external BOOLEAN NOT NULL DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_by TEXT,
+        updated_by TEXT
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_tools_sort_order ON tools(sort_order, is_active);
+      CREATE INDEX IF NOT EXISTS idx_tools_active ON tools(is_active);
+      
+      CREATE TRIGGER IF NOT EXISTS tools_updated_at 
+        AFTER UPDATE ON tools
+        FOR EACH ROW
+      BEGIN
+        UPDATE tools SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+      END;
+    `,
+    down: `
+      DROP TRIGGER IF EXISTS tools_updated_at;
+      DROP INDEX IF EXISTS idx_tools_active;
+      DROP INDEX IF EXISTS idx_tools_sort_order;
+      DROP TABLE IF EXISTS tools;
+    `
   }
 ];
 
