@@ -18,17 +18,48 @@ Ein modernes Web-Interface für AI-Assistenten mit React Frontend und Node.js Ba
 
 ### ⚡ **Quick Start**
 
+### Development (Phase 1)
 ```bash
-# 1. Lokale Entwicklung
-cd backend && npm run dev    # Terminal 1
-cd frontend && npm start     # Terminal 2
+# Start backend
+cd backend && npm run dev
 
-# 2. Docker Dev Testing
-./scripts/build-smart.sh -e development
+# Start frontend (new terminal)
+cd frontend && npm start
+```
+
+### Docker Testing (Phase 2)
+```bash
+# Build development images
+./scripts/build-smart.sh
+
+# Test with Docker
 docker-compose -f docker-compose.dev.yml up -d
+```
 
-# 3. Production Deployment
+### Production Deployment (Phase 3)
+```bash
+# Build and push production images
 ./scripts/build-smart.sh -e production -p
+```
+
+## 🚨 **Quick Fixes für häufige Probleme**
+
+### **Problem: %22%22 in URLs oder 405 Fehler**
+**Symptom:** Login schlägt fehl, URLs enthalten `%22%22`
+**Ursache:** Docker Build Cache Problem
+**Lösung:**
+```bash
+# Cache-freier Build für Production
+./scripts/build-smart.sh -e production -p --no-cache
+```
+
+### **Problem: Frontend zeigt alte Version**
+**Browser Hard-Refresh:** `Cmd/Ctrl + Shift + R`
+
+### **Problem: Images sind nicht Multi-Platform**
+**Überprüfung:**
+```bash
+docker buildx imagetools inspect ghcr.io/carstenrossi/skillbox-frontend:latest-production
 ```
 
 ## 🏗️ **Architektur**

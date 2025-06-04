@@ -211,6 +211,35 @@ docker buildx imagetools inspect ghcr.io/carstenrossi/skillbox-backend:latest-pr
 # ✅ GOOD: Normale Startup-Logs
 ```
 
+## 🚨 **WICHTIG: Docker Build Cache Probleme**
+
+### **Problem erkannt: 2025-06-04**
+**Symptom:** `%22%22` in API URLs, 405 Fehler in Production
+**Root Cause:** Docker Build Cache verwendete alte Frontend-Konfiguration trotz Code-Änderungen
+
+### **Wann Build Cache Probleme auftreten:**
+- 🔧 **Frontend-Konfiguration geändert** (`frontend/src/config/`)
+- 🔧 **API-URLs oder Environment-Variablen angepasst**
+- 🔧 **Backend-Konfiguration modifiziert** (`backend/src/config/`)
+- 🔧 **Nach längerer Entwicklungspause**
+
+### **Lösung: Cache-freier Build verwenden**
+```bash
+# Für kritische Deployment-Probleme:
+docker buildx build --platform linux/amd64,linux/arm64 --no-cache --push \
+  -t ghcr.io/carstenrossi/skillbox-frontend:$(date +%Y%m%d-%H%M%S) \
+  -f docker/Dockerfile.frontend.smart .
+
+# Oder Smart Build Script erweitern:
+./scripts/build-smart.sh -e production -p --no-cache
+```
+
+### **Präventive Maßnahmen:**
+1. **Immer neue Tags verwenden** (bereits implementiert)
+2. **Cache-Status prüfen** bei unerwarteten Problemen
+3. **Deployment-Tests** nach Config-Änderungen verstärken
+4. **Browser Hard-Refresh** bei Frontend-Problemen
+
 ---
 
 ## 📞 Support
@@ -223,4 +252,4 @@ Bei Problemen mit dem Deployment-Workflow:
 5. Environment-spezifische Configs prüfen
 
 **Letzte Aktualisierung:** 2025-06-04  
-**Version:** 3.0 (nach Platform-Problem Fix) 
+**Version:** 3.1 (Post Cache-Problem Fix) 
