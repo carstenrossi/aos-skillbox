@@ -225,9 +225,20 @@ if [[ "$USE_BUILDX" == true ]]; then
         print_status "Building for platform: $PLATFORMS"
     fi
     
+    # Generate unique tag for production to avoid cache issues
+    if [[ "$ENVIRONMENT" == "production" ]]; then
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        IMAGE_TAG="$TIMESTAMP"
+        print_status "🏷️ Using unique production tag: $IMAGE_TAG (avoids Docker cache issues)"
+    else
+        IMAGE_TAG="latest-$ENVIRONMENT"
+        print_status "🏷️ Using development tag: $IMAGE_TAG"
+    fi
+    
     BUILD_CMD="docker buildx bake -f $COMPOSE_FILE"
     if [[ "$NO_CACHE" == true ]]; then
         BUILD_CMD="$BUILD_CMD --no-cache"
+        print_status "🚫 Building without cache (--no-cache enabled)"
     fi
     if [[ "$PUSH" == true ]]; then
         BUILD_CMD="$BUILD_CMD --push"
@@ -235,11 +246,22 @@ if [[ "$USE_BUILDX" == true ]]; then
     
     # Set platform environment variable for docker-compose
     export DOCKER_DEFAULT_PLATFORM="$PLATFORMS"
+    export IMAGE_TAG="$IMAGE_TAG"  # Export for docker-compose
 else
+    # Generate unique tag for production to avoid cache issues
+    if [[ "$ENVIRONMENT" == "production" ]]; then
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        IMAGE_TAG="$TIMESTAMP"
+        print_status "🏷️ Using unique production tag: $IMAGE_TAG (avoids Docker cache issues)"
+    else
+        IMAGE_TAG="latest-$ENVIRONMENT"
+        print_status "🏷️ Using development tag: $IMAGE_TAG"
+    fi
+    
     BUILD_CMD="docker-compose -f $COMPOSE_FILE build"
     if [[ "$NO_CACHE" == true ]]; then
         BUILD_CMD="$BUILD_CMD --no-cache"
-        print_status "Building without cache"
+        print_status "🚫 Building without cache (--no-cache enabled)"
     fi
     if [[ -n "$PLATFORM" ]]; then
         print_status "Building for platform: $PLATFORM"
@@ -247,6 +269,7 @@ else
         # but we can set it via environment
         export DOCKER_DEFAULT_PLATFORM="$PLATFORM"
     fi
+    export IMAGE_TAG="$IMAGE_TAG"  # Export for docker-compose
 fi
 
 # Execute build
@@ -266,20 +289,20 @@ if [[ "$PUSH" == true ]]; then
         # Multi-Platform builds: Images are already pushed during build with --push
         print_success "🚀 Multi-Platform images pushed successfully during build!"
         
-        # Show which images were built
+        # Show which images were built with dynamic tags
         print_status "📦 Multi-Platform images available:"
-        echo "   - $REGISTRY/skillbox-backend:latest-$ENVIRONMENT (AMD64 + ARM64)"
-        echo "   - $REGISTRY/skillbox-frontend:latest-$ENVIRONMENT (AMD64 + ARM64)"
+        echo "   - $REGISTRY/skillbox-backend:$IMAGE_TAG (AMD64 + ARM64)"
+        echo "   - $REGISTRY/skillbox-frontend:$IMAGE_TAG (AMD64 + ARM64)"
         
-        # Verify multi-platform manifests
+        # Verify multi-platform manifests with dynamic tags
         print_status "🔍 Verifying Multi-Platform manifests..."
-        if docker buildx imagetools inspect "$REGISTRY/skillbox-backend:latest-$ENVIRONMENT" >/dev/null 2>&1; then
+        if docker buildx imagetools inspect "$REGISTRY/skillbox-backend:$IMAGE_TAG" >/dev/null 2>&1; then
             print_success "✅ Backend Multi-Platform manifest verified"
         else
             print_warning "⚠️ Backend manifest verification failed"
         fi
         
-        if docker buildx imagetools inspect "$REGISTRY/skillbox-frontend:latest-$ENVIRONMENT" >/dev/null 2>&1; then
+        if docker buildx imagetools inspect "$REGISTRY/skillbox-frontend:$IMAGE_TAG" >/dev/null 2>&1; then
             print_success "✅ Frontend Multi-Platform manifest verified"
         else
             print_warning "⚠️ Frontend manifest verification failed"
@@ -288,9 +311,6 @@ if [[ "$PUSH" == true ]]; then
     else
         # Single-Platform builds: Traditional tag/push approach
         print_status "Preparing to push single-platform images to registry..."
-        
-        # Generate timestamp tag
-        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
         
         # Get image IDs from docker-compose
         print_status "Getting image information..."
@@ -308,41 +328,54 @@ if [[ "$PUSH" == true ]]; then
             exit 1
         fi
         
-        # Tag images
+        # Tag images with dynamic tags
         print_status "Tagging images..."
-        docker tag "$BACKEND_IMAGE" "$REGISTRY/skillbox-backend:$TIMESTAMP"
-        docker tag "$BACKEND_IMAGE" "$REGISTRY/skillbox-backend:latest-$ENVIRONMENT"
-        docker tag "$FRONTEND_IMAGE" "$REGISTRY/skillbox-frontend:$TIMESTAMP"
-        docker tag "$FRONTEND_IMAGE" "$REGISTRY/skillbox-frontend:latest-$ENVIRONMENT"
+        docker tag "$BACKEND_IMAGE" "$REGISTRY/skillbox-backend:$IMAGE_TAG"
+        docker tag "$FRONTEND_IMAGE" "$REGISTRY/skillbox-frontend:$IMAGE_TAG"
         
-        # Push images
+        # For development, also create latest-development tag
+        if [[ "$ENVIRONMENT" == "development" ]]; then
+            docker tag "$BACKEND_IMAGE" "$REGISTRY/skillbox-backend:latest-development"
+            docker tag "$FRONTEND_IMAGE" "$REGISTRY/skillbox-frontend:latest-development"
+        fi
+        
+        # Push images with dynamic tags
         print_status "Pushing images to registry..."
-        docker push "$REGISTRY/skillbox-backend:$TIMESTAMP"
-        docker push "$REGISTRY/skillbox-backend:latest-$ENVIRONMENT"
-        docker push "$REGISTRY/skillbox-frontend:$TIMESTAMP"
-        docker push "$REGISTRY/skillbox-frontend:latest-$ENVIRONMENT"
+        docker push "$REGISTRY/skillbox-backend:$IMAGE_TAG"
+        docker push "$REGISTRY/skillbox-frontend:$IMAGE_TAG"
+        
+        # Push latest-development tag for development builds
+        if [[ "$ENVIRONMENT" == "development" ]]; then
+            docker push "$REGISTRY/skillbox-backend:latest-development"
+            docker push "$REGISTRY/skillbox-frontend:latest-development"
+        fi
         
         print_success "🚀 Single-platform images pushed successfully!"
-        echo "📦 Backend:  $REGISTRY/skillbox-backend:$TIMESTAMP"
-        echo "📦 Frontend: $REGISTRY/skillbox-frontend:$TIMESTAMP"
-        echo "🏷️ Latest:   $REGISTRY/skillbox-backend:latest-$ENVIRONMENT"
-        echo "🏷️ Latest:   $REGISTRY/skillbox-frontend:latest-$ENVIRONMENT"
+        echo "📦 Backend:  $REGISTRY/skillbox-backend:$IMAGE_TAG"
+        echo "📦 Frontend: $REGISTRY/skillbox-frontend:$IMAGE_TAG"
+        if [[ "$ENVIRONMENT" == "development" ]]; then
+            echo "🏷️ Latest:   $REGISTRY/skillbox-backend:latest-development"
+            echo "🏷️ Latest:   $REGISTRY/skillbox-frontend:latest-development"
+        fi
     fi
     
-    # Production deployment notes
+    # Production deployment notes with dynamic tags
     if [[ "$ENVIRONMENT" == "production" ]]; then
         echo ""
         print_workflow "🔄 NEXT STEPS FOR PRODUCTION DEPLOYMENT:"
         echo "1. Update docker-compose.prod.yml with image tags:"
         if [[ "$MULTI_PLATFORM" == true ]]; then
-            echo "   - Use: latest-production (Multi-Platform AMD64+ARM64)"
+            echo "   - skillbox-backend:$IMAGE_TAG (Multi-Platform AMD64+ARM64)"
+            echo "   - skillbox-frontend:$IMAGE_TAG (Multi-Platform AMD64+ARM64)"
         else
-            echo "   - skillbox-backend:$TIMESTAMP"
-            echo "   - skillbox-frontend:$TIMESTAMP"
+            echo "   - skillbox-backend:$IMAGE_TAG"
+            echo "   - skillbox-frontend:$IMAGE_TAG"
         fi
         echo "2. Commit the updated docker-compose.prod.yml"
         echo "3. Push to GitHub to trigger Elestio deployment"
         echo "4. Test at: https://skillboxdocker2-u31060.vm.elestio.app"
+        echo ""
+        print_status "🏷️ Production tag used: $IMAGE_TAG (avoids Docker cache issues)"
     fi
 fi
 

@@ -217,30 +217,35 @@ docker buildx imagetools inspect ghcr.io/carstenrossi/skillbox-backend:latest-pr
 **Symptom:** `%22%22` in API URLs, 405 Fehler in Production
 **Root Cause:** Docker Build Cache verwendete alte Frontend-Konfiguration trotz Code-Änderungen
 
+### **✅ GELÖST: Smart Build Script mit automatischen Timestamp-Tags**
+Das `build-smart.sh` Script verwendet jetzt **automatisch eindeutige Timestamp-Tags für Production**, um Docker Cache Probleme zu vermeiden:
+
+- **Development:** `latest-development` (OK für lokale Tests)
+- **Production:** `YYYYMMDD-HHMMSS` (eindeutige Tags, zwingt neue Image-Downloads)
+
 ### **Wann Build Cache Probleme auftreten:**
 - 🔧 **Frontend-Konfiguration geändert** (`frontend/src/config/`)
 - 🔧 **API-URLs oder Environment-Variablen angepasst**
 - 🔧 **Backend-Konfiguration modifiziert** (`backend/src/config/`)
 - 🔧 **Nach längerer Entwicklungspause**
 
-### **Lösung: Cache-freier Build verwenden**
+### **Lösung: Smart Build Script verwenden**
 ```bash
-# Für kritische Deployment-Probleme:
-docker buildx build --platform linux/amd64,linux/arm64 --no-cache --push \
-  -t ghcr.io/carstenrossi/skillbox-frontend:$(date +%Y%m%d-%H%M%S) \
-  -f docker/Dockerfile.frontend.smart .
+# ✅ AUTOMATISCH: Unique Tags für Production
+./scripts/build-smart.sh -e production -p
+# → Generiert automatisch: 20250604-153045
 
-# Oder Smart Build Script erweitern:
+# 🚫 Für kritische Cache-Probleme: --no-cache hinzufügen
 ./scripts/build-smart.sh -e production -p --no-cache
 ```
 
-### **Präventive Maßnahmen:**
-1. **Immer neue Tags verwenden** (bereits implementiert)
-2. **Cache-Status prüfen** bei unerwarteten Problemen
-3. **Deployment-Tests** nach Config-Änderungen verstärken
-4. **Browser Hard-Refresh** bei Frontend-Problemen
-
----
+### **Manueller Fallback (nur bei Script-Problemen):**
+```bash
+# Nur verwenden wenn das Smart Script nicht funktioniert
+docker buildx build --platform linux/amd64,linux/arm64 --no-cache --push \
+  -t ghcr.io/carstenrossi/skillbox-frontend:$(date +%Y%m%d-%H%M%S) \
+  -f docker/Dockerfile.frontend .
+```
 
 ## 📞 Support
 
@@ -252,4 +257,4 @@ Bei Problemen mit dem Deployment-Workflow:
 5. Environment-spezifische Configs prüfen
 
 **Letzte Aktualisierung:** 2025-06-04  
-**Version:** 3.1 (Post Cache-Problem Fix) 
+**Version:** 3.2 (Smart Build Script mit automatischen Timestamp-Tags) 
