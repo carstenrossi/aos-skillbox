@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   skillbox-backend:
-    image: ghcr.io/carstenrossi/skillbox-backend:20250604-144101
+    image: ghcr.io/carstenrossi/skillbox-backend:20250604-144705
     ports:
       - "3001:3001"  # Backend muss einen Port exposen für Reverse Proxy
     environment:
@@ -21,20 +21,24 @@ services:
       - skillbox-network
 
   skillbox-frontend:
-    image: ghcr.io/carstenrossi/skillbox-frontend:20250604-144101
+    image: ghcr.io/carstenrossi/skillbox-frontend:20250604-144705
     ports:
       - "3000:80"
-    depends_on:
-      - skillbox-backend
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - frontend_logs:/var/log/nginx
     restart: unless-stopped
+    # Removed user specification to avoid permission issues  
     networks:
       - skillbox-network
+    depends_on:
+      - skillbox-backend
 
 volumes:
   backend_data:
-    driver: local
   backend_logs:
-    driver: local 
+  frontend_logs:
 
 networks:
   skillbox-network:
