@@ -235,18 +235,40 @@ if [[ "$USE_BUILDX" == true ]]; then
         print_status "🏷️ Using development tag: $IMAGE_TAG"
     fi
     
-    BUILD_CMD="docker buildx bake -f $COMPOSE_FILE"
-    if [[ "$NO_CACHE" == true ]]; then
-        BUILD_CMD="$BUILD_CMD --no-cache"
-        print_status "🚫 Building without cache (--no-cache enabled)"
+    # Multi-Platform builds: Use direct docker buildx build commands
+    if [[ "$MULTI_PLATFORM" == true ]]; then
+        print_status "Building Frontend..."
+        BUILD_CMD_FRONTEND="docker buildx build --platform $PLATFORMS -t $REGISTRY/skillbox-frontend:$IMAGE_TAG -f docker/Dockerfile.frontend.smart ."
+        if [[ "$NO_CACHE" == true ]]; then
+            BUILD_CMD_FRONTEND="$BUILD_CMD_FRONTEND --no-cache"
+            print_status "🚫 Building without cache (--no-cache enabled)"
+        fi
+        if [[ "$PUSH" == true ]]; then
+            BUILD_CMD_FRONTEND="$BUILD_CMD_FRONTEND --push"
+        fi
+        
+        print_status "Building Backend..."
+        BUILD_CMD_BACKEND="docker buildx build --platform $PLATFORMS -t $REGISTRY/skillbox-backend:$IMAGE_TAG -f docker/Dockerfile.backend.smart ."
+        if [[ "$NO_CACHE" == true ]]; then
+            BUILD_CMD_BACKEND="$BUILD_CMD_BACKEND --no-cache"
+        fi
+        if [[ "$PUSH" == true ]]; then
+            BUILD_CMD_BACKEND="$BUILD_CMD_BACKEND --push"
+        fi
+    else
+        # Single platform builds with buildx
+        BUILD_CMD_FRONTEND="docker buildx build --platform $PLATFORMS -t $REGISTRY/skillbox-frontend:$IMAGE_TAG -f docker/Dockerfile.frontend.smart ."
+        BUILD_CMD_BACKEND="docker buildx build --platform $PLATFORMS -t $REGISTRY/skillbox-backend:$IMAGE_TAG -f docker/Dockerfile.backend.smart ."
+        if [[ "$NO_CACHE" == true ]]; then
+            BUILD_CMD_FRONTEND="$BUILD_CMD_FRONTEND --no-cache"
+            BUILD_CMD_BACKEND="$BUILD_CMD_BACKEND --no-cache"
+            print_status "🚫 Building without cache (--no-cache enabled)"
+        fi
+        if [[ "$PUSH" == true ]]; then
+            BUILD_CMD_FRONTEND="$BUILD_CMD_FRONTEND --push"
+            BUILD_CMD_BACKEND="$BUILD_CMD_BACKEND --push"
+        fi
     fi
-    if [[ "$PUSH" == true ]]; then
-        BUILD_CMD="$BUILD_CMD --push"
-    fi
-    
-    # Set platform environment variable for docker-compose
-    export DOCKER_DEFAULT_PLATFORM="$PLATFORMS"
-    export IMAGE_TAG="$IMAGE_TAG"  # Export for docker-compose
 else
     # Generate unique tag for production to avoid cache issues
     if [[ "$ENVIRONMENT" == "production" ]]; then
@@ -275,12 +297,38 @@ fi
 # Execute build
 print_status "Starting build process..."
 echo ""
-if eval "$BUILD_CMD"; then
+
+if [[ "$USE_BUILDX" == true ]]; then
+    # Execute frontend build
+    print_status "🚀 Building Frontend..."
+    if eval "$BUILD_CMD_FRONTEND"; then
+        print_success "✅ Frontend build completed successfully!"
+    else
+        print_error "❌ Frontend build failed"
+        exit 1
+    fi
+    
     echo ""
-    print_success "🎉 Build completed successfully!"
+    # Execute backend build  
+    print_status "🚀 Building Backend..."
+    if eval "$BUILD_CMD_BACKEND"; then
+        print_success "✅ Backend build completed successfully!"
+    else
+        print_error "❌ Backend build failed"
+        exit 1
+    fi
+    
+    echo ""
+    print_success "🎉 All builds completed successfully!"
 else
-    print_error "❌ Build failed"
-    exit 1
+    # Traditional docker-compose build
+    if eval "$BUILD_CMD"; then
+        echo ""
+        print_success "🎉 Build completed successfully!"
+    else
+        print_error "❌ Build failed"
+        exit 1
+    fi
 fi
 
 # FIXED: Multi-Platform aware push logic
