@@ -3,12 +3,14 @@ version: '3.8'
 services:
   skillbox-backend:
     image: ghcr.io/carstenrossi/skillbox-backend:20250604-130619
-    # Ports removed - Elestio reverse proxy will handle routing
+    ports:
+      - "3001:3001"  # Backend muss einen Port exposen für Reverse Proxy
     environment:
       - NODE_ENV=production
       - PORT=3001
+      - HOST=0.0.0.0  # Wichtig: Auf alle Interfaces binden
       - JWT_SECRET=${JWT_SECRET}
-      - CORS_ORIGIN=https://skillboxdocker-u31060.vm.elestio.app,http://localhost:3000
+      - CORS_ORIGIN=https://skillboxdocker-u31060.vm.elestio.app,http://localhost:3000,http://localhost:3003
       - CORS_CREDENTIALS=true
     volumes:
       - backend_data:/app/data
