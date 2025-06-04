@@ -160,7 +160,7 @@ fi
 if [[ "$ENVIRONMENT" == "development" ]]; then
     COMPOSE_FILE="docker-compose.dev.yml"
 else
-    COMPOSE_FILE="docker-compose.prod.yml"
+    COMPOSE_FILE="docker-compose.prod.smart.yml"
 fi
 
 print_status "Environment: $ENVIRONMENT"

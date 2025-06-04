@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   skillbox-backend:
+    image: ghcr.io/carstenrossi/skillbox-backend:latest-production
     build:
       context: .
       dockerfile: docker/Dockerfile.backend.smart
@@ -21,6 +22,7 @@ services:
       - skillbox-network
 
   skillbox-frontend:
+    image: ghcr.io/carstenrossi/skillbox-frontend:latest-production
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend.smart
