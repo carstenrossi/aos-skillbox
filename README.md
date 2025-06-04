@@ -104,7 +104,7 @@ npm install
 npm run dev
 
 # Frontend Setup (neues Terminal)
-cd frontend  
+cd frontend
 npm install
 npm start
 ```

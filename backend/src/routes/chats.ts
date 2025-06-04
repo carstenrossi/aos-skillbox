@@ -125,10 +125,10 @@ router.post('/:conversationId/messages', async (req, res) => {
       return res.json({
         success: true,
         data: {
-          response: aiResponse.choices?.[0]?.message?.content || 'No response from AI',
-          conversationId,
-          messageId: `msg_${Date.now()}_${Math.random().toString(36).substring(2)}`,
-          assistantId,
+        response: aiResponse.choices?.[0]?.message?.content || 'No response from AI',
+        conversationId,
+        messageId: `msg_${Date.now()}_${Math.random().toString(36).substring(2)}`,
+        assistantId,
         },
         timestamp: new Date().toISOString()
       });
@@ -153,7 +153,7 @@ router.post('/:conversationId/messages', async (req, res) => {
           success: false,
           error: { 
             message: 'AI service error',
-            details: apiError.response?.data || apiError.message
+          details: apiError.response?.data || apiError.message
           },
           timestamp: new Date().toISOString()
         });
