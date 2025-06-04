@@ -51,13 +51,15 @@ docker-compose -f docker-compose.dev.yml up -d
 - Backup-System (täglich, 7 Tage Retention)
 - Persistent Volumes für Docker-Deployments
 
-## 🌐 **Environments**
+## 🌐 **Environments & Ports**
 
 | Environment | Frontend | Backend | Purpose |
 |-------------|----------|---------|---------|
-| **Local** | localhost:3000 | localhost:3001 | Development & Debugging |
-| **Docker Dev** | localhost:3003 | localhost:3002 | Container Testing |
+| **Local Source** | localhost:3000 | localhost:3001 | Development & Debugging |
+| **Docker Dev** | localhost:3003 | localhost:3002 | Container Testing (fest konfiguriert) |
 | **Production** | Elestio Cloud | Elestio Cloud | Live System |
+
+> **💡 Vorteil:** Die Docker Dev Umgebung verwendet feste Ports (3002/3003), damit sie parallel zur lokalen Entwicklung (3000/3001) laufen kann ohne Konflikte.
 
 ## 🔧 **Features**
 

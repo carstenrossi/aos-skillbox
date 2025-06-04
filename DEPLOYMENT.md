@@ -17,10 +17,11 @@ Source Code → Docker Dev → Docker Production (Elestio)
 - **Vorteile:** Hot Reload, Source Maps, schnelle Builds
 
 ### 2. **Docker Development** (Pre-Production Testing)
-- **Frontend:** Containerized auf Port 3003
-- **Backend:** Containerized auf Port 3002
+- **Frontend:** http://localhost:3003 (Port 3003 - fest konfiguriert)
+- **Backend:** http://localhost:3002 (Port 3002 - fest konfiguriert)
 - **Verwendung:** Test der Container-Images vor Production
 - **Zweck:** Sicherstellen dass Docker-Builds funktionieren
+- **Vorteil:** Keine Port-Konflikte mit lokaler Entwicklung
 
 ### 3. **Docker Production** (Elestio Cloud)
 - **URL:** https://skillboxdocker-u31060.vm.elestio.app
@@ -50,12 +51,12 @@ cd frontend && npm start
 # Smart Build für Development
 ./scripts/build-smart.sh -e development
 
-# Test-Container starten (temporäre Ports)
+# Test-Container starten 
 docker-compose -f docker-compose.dev.yml up -d
 
-# Testen auf alternativen Ports um Konflikte zu vermeiden
-# Backend: http://localhost:3002
-# Frontend: http://localhost:3003
+# Testen auf festen Ports (keine Konflikte mit lokaler Entwicklung)
+# Frontend: http://localhost:3003 (fest konfiguriert)
+# Backend: http://localhost:3002 (fest konfiguriert)
 ```
 **Vollständig testen:** Alle Features funktional ✅
 
@@ -90,8 +91,8 @@ docker-compose -f docker-compose.dev.yml up -d
 ### Intelligente URL-Erkennung (Frontend)
 Die Frontend-Konfiguration erkennt automatisch die Umgebung:
 
-- **Port 3000** → API: `http://localhost:3001` (lokal)
-- **Port 3003** → API: `http://localhost:3002` (Docker Dev)
+- **Port 3000** → API: `http://localhost:3001` (lokale Entwicklung)
+- **Port 3003** → API: `http://localhost:3002` (Docker Dev - fest konfiguriert)
 - **Production** → Relative URLs (Reverse Proxy)
 
 ### CORS-Konfiguration (Backend)
