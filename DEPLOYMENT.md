@@ -1,143 +1,163 @@
-# Skillbox Deployment Guide
+# 🚀 Skillbox Deployment Workflow
 
-## Übersicht
-Skillbox ist eine React/Node.js-Anwendung für AI-Assistenten mit SQLite-Datenbank, die via Docker auf Elestio deployed wird.
+## 📖 Übersicht
 
-## Aktuelle Production Images
-- **Backend**: `ghcr.io/carstenrossi/skillbox-backend:20250602-134035`
-- **Frontend**: `ghcr.io/carstenrossi/skillbox-frontend:20250602-134457`
+Dieses Dokument beschreibt den **3-stufigen Deployment-Workflow** für das Skillbox-Projekt:
 
-## Erforderliche Umgebungsvariablen
+```
+Source Code → Docker Dev → Docker Production (Elestio)
+```
 
-### Backend (KRITISCH)
+## 🏗️ Development Environments
+
+### 1. **Lokaler Source Code** (Primary Development)
+- **Frontend:** http://localhost:3000 (React Dev Server)
+- **Backend:** http://localhost:3001 (Node.js mit nodemon)
+- **Verwendung:** Hauptentwicklung, schnelle Iteration, Debugging
+- **Vorteile:** Hot Reload, Source Maps, schnelle Builds
+
+### 2. **Docker Development** (Pre-Production Testing)
+- **Frontend:** Containerized auf Port 3003
+- **Backend:** Containerized auf Port 3002
+- **Verwendung:** Test der Container-Images vor Production
+- **Zweck:** Sicherstellen dass Docker-Builds funktionieren
+
+### 3. **Docker Production** (Elestio Cloud)
+- **URL:** https://skillboxdocker-u31060.vm.elestio.app
+- **Verwendung:** Finaler Produktionstest und Live-System
+- **Registry:** GitHub Container Registry (ghcr.io)
+
+## 🔄 Mandatory Workflow
+
+### ⚠️ WICHTIGE REGEL:
+**NIEMALS direkt in Docker-Images entwickeln!** 
+Alle Änderungen MÜSSEN im **lokalen Source Code** gemacht und dann durch den kompletten Workflow getestet werden.
+
+### Schritt-für-Schritt Prozess:
+
+#### 1️⃣ **Lokale Entwicklung**
 ```bash
-JWT_SECRET=nUZhjARF7Cy8TdQ8lHzQjXnAK5SibDEjXOYjyXxVrT8=
-```
-**⚠️ WICHTIG**: Ohne JWT_SECRET funktioniert die Authentifizierung nicht!
+# Backend starten (Terminal 1)
+cd backend && npm run dev
 
-### Optional
+# Frontend starten (Terminal 2) 
+cd frontend && npm start
+```
+**Testen:** http://localhost:3000 ✅
+
+#### 2️⃣ **Docker Dev Build & Test**
 ```bash
-NODE_ENV=production
-PORT=3001
-CORS_ORIGIN=https://ihre-domain.com,http://localhost:3000
-CORS_CREDENTIALS=true
+# Smart Build für Development
+./scripts/build-smart.sh -e development
+
+# Test-Container starten (temporäre Ports)
+docker-compose -f docker-compose.dev.yml up -d
+
+# Testen auf alternativen Ports um Konflikte zu vermeiden
+# Backend: http://localhost:3002
+# Frontend: http://localhost:3003
 ```
+**Vollständig testen:** Alle Features funktional ✅
 
-## Docker Deployment (Elestio)
-
-### 1. Images für Production builden
+#### 3️⃣ **Production Build & Push**
 ```bash
-# Backend für linux/amd64 (Elestio-kompatibel)
-docker build --platform linux/amd64 -f docker/Dockerfile.backend -t ghcr.io/carstenrossi/skillbox-backend:YYYYMMDD-HHMMSS .
-docker push ghcr.io/carstenrossi/skillbox-backend:YYYYMMDD-HHMMSS
+# Production Images bauen und pushen
+./scripts/build-smart.sh -e production -p
 
-# Frontend für linux/amd64
-docker build --platform linux/amd64 -f docker/Dockerfile.frontend -t ghcr.io/carstenrossi/skillbox-frontend:YYYYMMDD-HHMMSS .
-docker push ghcr.io/carstenrossi/skillbox-frontend:YYYYMMDD-HHMMSS
+# docker-compose.prod.yml mit neuen Tags aktualisieren
+# Elestio Deployment triggern
 ```
+**Live-Test:** https://skillboxdocker-u31060.vm.elestio.app ✅
 
-### 2. docker-compose.prod.yml verwenden
-Die aktuelle `docker-compose.prod.yml` ist deployment-ready.
+## 🛠️ Build Scripts
 
-## Standard-Benutzer nach Deployment
-```
-admin / admin123      (Admin-Rechte)
-manager / manager123  (Manager-Rechte)  
-user / user123       (Standard-Rechte)
-```
+### Smart Build System
+- **Script:** `./scripts/build-smart.sh`
+- **Unterstützte Environments:** development, production
+- **Features:** Automatische Tagging, Multi-Stage Builds, Push zu Registry
 
-## Wichtige Architektur-Details
-
-### Frontend (React + nginx)
-- Port: 3000 (extern)
-- Nginx reverse proxy für API-Calls zum Backend
-- Environment Variable `REACT_APP_API_URL=""` für relative API-Pfade
-
-### Backend (Node.js + Express)
-- Port: 3001 (intern)
-- SQLite-Datenbank mit automatischen Migrations
-- JWT-basierte Authentifizierung
-- CORS-Konfiguration für Cross-Origin-Requests
-
-### Datenbank (SQLite)
-- Automatische Migrations beim Start
-- Persistent volumes: `backend_data` und `backend_logs`
-- Standard-Benutzer werden automatisch erstellt
-
-## Gelöste Deployment-Probleme
-
-### 1. CORS-Fehler
-**Problem**: Frontend machte Requests an `localhost:3001` statt relative URLs
-**Lösung**: `REACT_APP_API_URL=""` im Frontend-Build setzen
-
-### 2. Plattform-Kompatibilität 
-**Problem**: `no matching manifest for linux/amd64`
-**Lösung**: Images mit `--platform linux/amd64` builden
-
-### 3. SQLite-Permissions
-**Problem**: Backend konnte nicht auf SQLite-Datei zugreifen
-**Lösung**: Container als root laufen lassen, automatische Ordner-Erstellung
-
-### 4. Fehlende Tools-Migration
-**Problem**: Tools konnten nicht erstellt werden
-**Lösung**: Migration 8 (create_tools_table) zu migrations.ts Array hinzugefügt
-
-### 5. Fehlende Authorization Headers
-**Problem**: Admin konnte keine User erstellen
-**Lösung**: `Authorization: Bearer ${token}` Header in AdminPanel hinzugefügt
-
-## Funktionen-Status ✅
-
-- ✅ Assistants erstellen/bearbeiten/löschen
-- ✅ Tools erstellen/bearbeiten/löschen  
-- ✅ User erstellen/bearbeiten/löschen (Admin Panel)
-- ✅ Normale Registrierung (`/api/auth/register`)
-- ✅ JWT-Authentifizierung
-- ✅ Rollen-basierte Zugriffskonrolle
-- ✅ CORS korrekt konfiguriert
-
-## Debugging-Befehle
-
-### Container-Logs anzeigen
+### Verwendung:
 ```bash
-docker logs skillbox-backend-1
-docker logs skillbox-frontend-1
+# Development Build (lokal testen)
+./scripts/build-smart.sh -e development
+
+# Production Build + Push
+./scripts/build-smart.sh -e production -p
 ```
 
-### In Container einsteigen
-```bash
-docker exec -it skillbox-backend-1 sh
-docker exec -it skillbox-frontend-1 sh
+## 🔧 API Konfiguration
+
+### Intelligente URL-Erkennung (Frontend)
+Die Frontend-Konfiguration erkennt automatisch die Umgebung:
+
+- **Port 3000** → API: `http://localhost:3001` (lokal)
+- **Port 3003** → API: `http://localhost:3002` (Docker Dev)
+- **Production** → Relative URLs (Reverse Proxy)
+
+### CORS-Konfiguration (Backend)
+```env
+CORS_ORIGIN=https://skillboxdocker-u31060.vm.elestio.app,http://localhost:3000,http://localhost:3003
 ```
 
-### Local Testing
-```bash
-# Frontend lokal testen
-docker run --rm -p 8080:80 ghcr.io/carstenrossi/skillbox-frontend:20250602-134457
+## 🎯 Best Practices
 
-# Backend lokal testen  
-docker run --rm -p 3001:3001 -e JWT_SECRET=nUZhjARF7Cy8TdQ8lHzQjXnAK5SibDEjXOYjyXxVrT8= ghcr.io/carstenrossi/skillbox-backend:20250602-134035
+### ✅ DO's:
+- Immer im **lokalen Source Code** entwickeln
+- **Jeden Fix** durch alle 3 Environments testen
+- **Smart Build Script** für konsistente Builds verwenden
+- **API Response Format** standardisiert verwenden
+- **Git Commits** vor Docker Builds machen
+
+### ❌ DON'Ts:
+- Niemals direkt in Docker-Containern entwickeln
+- Nicht Production pushen ohne Docker Dev Test
+- Nicht während laufender Production-Tests deployen
+- Keine manuellen Docker Builds (Smart Script verwenden)
+
+## 📁 Wichtige Dateien
+
+```
+├── scripts/build-smart.sh          # Build Automation
+├── docker-compose.dev.yml         # Development Container
+├── docker-compose.prod.yml        # Production Container  
+├── docker/Dockerfile.*.smart      # Multi-Stage Dockerfiles
+├── frontend/src/config/index.ts   # Environment Detection
+└── DEPLOYMENT.md                  # Diese Dokumentation
 ```
 
-## Nächste Updates
+## 🚨 Troubleshooting
 
-### Images aktualisieren:
-1. Neue Images mit `--platform linux/amd64` builden
-2. In `docker-compose.prod.yml` Image-Tags aktualisieren
-3. Auf Elestio re-deployen
-4. Dieses Dokument mit neuen Image-Tags aktualisieren
+### Problem: CORS Errors
+- **Ursache:** Frontend ruft falsches Backend auf
+- **Lösung:** Smart URL Detection in config/index.ts prüfen
 
-### Backup der SQLite-Datenbank:
-```bash
-docker exec skillbox-backend-1 sqlite3 /app/data/database.sqlite ".backup /app/data/backup-$(date +%Y%m%d).sqlite"
-```
+### Problem: API Response Format Errors  
+- **Ursache:** Inkonsistente Response Formats
+- **Lösung:** Alle APIs müssen `{ success: true, data: {...} }` Format verwenden
 
-## Support-Kontakte
-- GitHub Repository: [Repository-URL]
-- Docker Images: `ghcr.io/carstenrossi/skillbox-*`
-- Deployment Platform: Elestio
+### Problem: Docker Build Failures
+- **Ursache:** Meist Dependency oder Context Issues
+- **Lösung:** Smart Build Script verwenden, nicht manuelle Builds
+
+## 🔄 Synchronisation
+
+**CRITICAL:** Alle 3 Environments müssen identischen Code verwenden!
+
+1. **Source Code Fix** → Git Commit
+2. **Docker Dev Build** → Test & Verify  
+3. **Production Build** → Push & Deploy
+
+**Bei jeder Änderung diesen Workflow befolgen!**
 
 ---
-**Erstellt**: 2025-06-02  
-**Letzte Aktualisierung**: 2025-06-02  
-**Status**: ✅ Production Ready 
+
+## 📞 Support
+
+Bei Problemen mit dem Deployment-Workflow:
+1. Diese Dokumentation konsultieren
+2. Smart Build Script Logs prüfen  
+3. Docker Logs analysieren
+4. Environment-spezifische Configs prüfen
+
+**Letzte Aktualisierung:** 2025-06-04
+**Version:** 2.0 (nach API Standardisierung) 

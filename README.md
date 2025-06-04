@@ -1,153 +1,203 @@
-# Skillbox - AI Assistant Management Platform
+# 🚀 Skillbox - AI Assistant Platform
 
-Eine moderne Web-Anwendung zur Verwaltung von AI-Assistenten, Tools und Benutzern.
+Ein modernes Web-Interface für AI-Assistenten mit React Frontend und Node.js Backend.
 
-## 🚀 Features
+## 🎯 **Deployment Workflow**
 
-- **Assistant Management**: Erstellen, bearbeiten und verwalten Sie AI-Assistenten
-- **Tool Integration**: Externe Tools in die Plattform einbinden
-- **User Management**: Vollständige Benutzerverwaltung mit Rollen (Admin/Manager/User)
-- **Authentication**: Sichere JWT-basierte Authentifizierung
-- **Responsive Design**: Moderne React-Oberfläche mit Tailwind CSS
+**⚠️ WICHTIG:** Dieses Projekt folgt einem **3-stufigen Deployment-Workflow**:
 
-## 🏗️ Technologie-Stack
-
-- **Frontend**: React, TypeScript, Tailwind CSS, Vite
-- **Backend**: Node.js, Express, SQLite
-- **Authentication**: JWT (JSON Web Tokens)
-- **Deployment**: Docker, nginx
-
-## 📦 Quick Start
-
-### Produktions-Deployment (Elestio)
-
-Verwenden Sie die bereitgestellte `docker-compose.prod.yml`:
-
-```bash
-# Wichtige Umgebungsvariable setzen
-export JWT_SECRET="nUZhjARF7Cy8TdQ8lHzQjXnAK5SibDEjXOYjyXxVrT8="
-
-# Deployment starten
-docker-compose -f docker-compose.prod.yml up -d
+```
+💻 Local Source Code  →  🐳 Docker Dev Testing  →  🚀 Production Deployment
 ```
 
-**📋 Detaillierte Deployment-Anleitung: [DEPLOYMENT.md](./DEPLOYMENT.md)**
+### 📖 **Dokumentation**
 
-### Lokale Entwicklung
+- **🚀 [WORKFLOW_REFERENCE.md](WORKFLOW_REFERENCE.md)** - Quick Reference für Entwicklung
+- **📋 [DEPLOYMENT.md](DEPLOYMENT.md)** - Vollständige Workflow-Dokumentation
+- **🛠️ [scripts/build-smart.sh](scripts/build-smart.sh)** - Automatisierte Build-Pipeline
+
+### ⚡ **Quick Start**
 
 ```bash
-# Repository klonen
-git clone [repository-url]
-cd Skillbox
+# 1. Lokale Entwicklung
+cd backend && npm run dev    # Terminal 1
+cd frontend && npm start     # Terminal 2
 
-# Backend starten
+# 2. Docker Dev Testing
+./scripts/build-smart.sh -e development
+docker-compose -f docker-compose.dev.yml up -d
+
+# 3. Production Deployment
+./scripts/build-smart.sh -e production -p
+```
+
+## 🏗️ **Architektur**
+
+### Frontend (React + TypeScript)
+- **Port 3000** (lokal) / **Port 3003** (Docker Dev)
+- Moderne React-App mit TypeScript
+- Intelligente API URL-Erkennung für Multi-Environment
+- Vite Build System für optimale Performance
+
+### Backend (Node.js + Express + TypeScript)
+- **Port 3001** (lokal) / **Port 3002** (Docker Dev)
+- RESTful API mit standardisiertem Response Format
+- SQLite-Datenbank mit automatischen Migrations
+- JWT-basierte Authentifizierung
+- CORS-Konfiguration für Cross-Origin Support
+
+### Datenbank (SQLite)
+- Automatische Schema-Migrations
+- Backup-System (täglich, 7 Tage Retention)
+- Persistent Volumes für Docker-Deployments
+
+## 🌐 **Environments**
+
+| Environment | Frontend | Backend | Purpose |
+|-------------|----------|---------|---------|
+| **Local** | localhost:3000 | localhost:3001 | Development & Debugging |
+| **Docker Dev** | localhost:3003 | localhost:3002 | Container Testing |
+| **Production** | Elestio Cloud | Elestio Cloud | Live System |
+
+## 🔧 **Features**
+
+### ✅ **Funktionell**
+- 🤖 **Assistants Management** - Erstellen, Bearbeiten, Löschen
+- 🛠️ **Tools Management** - API-Tools für Assistants
+- 👥 **User Management** - Rollen-basierte Zugriffskonrolle
+- 💬 **Chat Interface** - Echtzeit-Kommunikation mit AI
+- 🔐 **Authentication** - JWT-basierte Sicherheit
+- 📊 **Admin Panel** - Vollständige Systemverwaltung
+
+### 🔒 **Sicherheit**
+- JWT-Token Authentifizierung
+- Rollen-basierte Berechtigung (Admin, Manager, User)
+- CORS-Schutz
+- Input-Validierung
+- Audit-Logging für Admin-Aktionen
+
+### 🐳 **DevOps**
+- Multi-Stage Docker Builds
+- Automatisierte Build-Pipeline
+- Environment-spezifische Konfiguration
+- Health Checks & Monitoring
+- Backup & Recovery
+
+## 🛠️ **Installation & Setup**
+
+### Voraussetzungen
+- Node.js 18+
+- Docker & Docker Compose
+- Git
+
+### Lokale Entwicklung
+```bash
+# Repository clonen
+git clone https://github.com/carstenrossi/skillbox.git
+cd skillbox
+
+# Backend Setup
 cd backend
 npm install
 npm run dev
 
-# Frontend starten (neues Terminal)
-cd frontend
+# Frontend Setup (neues Terminal)
+cd frontend  
 npm install
-npm run dev
+npm start
 ```
 
-## 👥 Standard-Benutzer
-
-Nach dem ersten Start sind folgende Benutzer verfügbar:
-
-| Benutzername | Passwort | Rolle |
-|--------------|----------|-------|
-| admin | admin123 | Admin |
-| manager | manager123 | Manager |
-| user | user123 | User |
-
-## 🔧 Konfiguration
-
-### Wichtige Umgebungsvariablen
-
+### Docker Development
 ```bash
-# Backend (KRITISCH)
-JWT_SECRET=nUZhjARF7Cy8TdQ8lHzQjXnAK5SibDEjXOYjyXxVrT8=
+# Smart Build verwenden
+./scripts/build-smart.sh -e development
 
-# Optional
-NODE_ENV=production
-CORS_ORIGIN=https://ihre-domain.com
-CORS_CREDENTIALS=true
+# Container starten
+docker-compose -f docker-compose.dev.yml up -d
+
+# Testen: http://localhost:3003
 ```
 
-## 📁 Projektstruktur
+## 🚀 **Deployment**
 
-```
-Skillbox/
-├── frontend/                 # React Frontend
-│   ├── src/
-│   ├── public/
-│   └── package.json
-├── backend/                  # Node.js Backend
-│   ├── src/
-│   ├── migrations/
-│   └── package.json
-├── docker/                   # Docker Konfiguration
-│   ├── Dockerfile.frontend
-│   └── Dockerfile.backend
-├── docker-compose.prod.yml   # Produktions-Deployment
-├── DEPLOYMENT.md            # Detaillierte Deployment-Anleitung
-└── README.md               # Diese Datei
-```
+**Vollständige Anweisungen:** Siehe [DEPLOYMENT.md](DEPLOYMENT.md)
 
-## 🛠️ Entwicklung
-
-### Verfügbare Scripts
-
-**Frontend:**
+### Production Build
 ```bash
-npm run dev          # Entwicklungsserver
-npm run build        # Produktions-Build
-npm run preview      # Preview des Builds
+# Production Images bauen und pushen
+./scripts/build-smart.sh -e production -p
+
+# docker-compose.prod.yml aktualisieren
+# Deploy to Elestio
 ```
 
-**Backend:**
-```bash
-npm run dev          # Entwicklungsserver mit nodemon
-npm start           # Produktionsstart
-npm run build       # TypeScript kompilieren
+## 📁 **Projektstruktur**
+
+```
+skillbox/
+├── 📋 DEPLOYMENT.md              # Vollständige Workflow-Docs
+├── 🚀 WORKFLOW_REFERENCE.md      # Quick Reference
+├── 🛠️ scripts/build-smart.sh     # Build Automation
+├── 🐳 docker-compose.*.yml       # Docker Configurations
+├── 🔧 backend/                   # Node.js Backend
+│   ├── src/routes/              # API Routes
+│   ├── src/middleware/          # Authentication & Validation
+│   └── src/services/            # Business Logic
+├── 🎨 frontend/                  # React Frontend
+│   ├── src/components/          # UI Components
+│   ├── src/services/            # API Communication
+│   └── src/config/              # Environment Configuration
+└── 🐳 docker/                    # Docker Build Files
 ```
 
-## 🐳 Docker
+## 🔍 **API Documentation**
 
-### Images builden
+### Standard Response Format
+Alle APIs verwenden einheitliches Response Format:
 
-```bash
-# Backend für Production (linux/amd64)
-docker build --platform linux/amd64 -f docker/Dockerfile.backend -t skillbox-backend .
-
-# Frontend für Production (linux/amd64)  
-docker build --platform linux/amd64 -f docker/Dockerfile.frontend -t skillbox-frontend .
+```json
+{
+  "success": true,
+  "data": { ... },
+  "timestamp": "2025-06-04T07:53:11.522Z"
+}
 ```
 
-## 📊 Aktuelle Production Images
+### Hauptendpunkte
+- `GET /api/assistants` - Liste aller Assistants
+- `POST /api/assistants` - Neuen Assistant erstellen
+- `GET /api/tools` - Liste aller Tools
+- `POST /api/conversations/:id/messages` - Chat Message senden
+- `POST /api/admin/users` - User erstellen (Admin)
 
-- **Backend**: `ghcr.io/carstenrossi/skillbox-backend:20250602-134035`
-- **Frontend**: `ghcr.io/carstenrossi/skillbox-frontend:20250602-134457`
+## 🚨 **Troubleshooting**
 
-## 🤝 Contributing
+### Häufige Probleme
+- **CORS Errors:** Prüfe `frontend/src/config/index.ts`
+- **API Format Errors:** Stelle sicher, dass `{ success: true, data: {...} }` verwendet wird
+- **Auth Errors:** Überprüfe JWT Token in localStorage
 
-1. Fork das Repository
-2. Erstelle einen Feature-Branch (`git checkout -b feature/amazing-feature`)
-3. Committe deine Änderungen (`git commit -m 'Add amazing feature'`)
-4. Push zum Branch (`git push origin feature/amazing-feature`)
-5. Öffne einen Pull Request
+### Support
+1. 📖 Konsultiere [DEPLOYMENT.md](DEPLOYMENT.md) 
+2. 🔍 Überprüfe Build Script Logs
+3. 📊 Analysiere Docker Container Logs
 
-## 📝 Lizenz
+## 👥 **Standard-Benutzer**
 
-Dieses Projekt steht unter der [MIT Lizenz](LICENSE).
+Nach dem Deployment sind folgende Test-Benutzer verfügbar:
 
-## 🆘 Support
+```
+admin / admin123      (Admin-Rechte)
+manager / manager123  (Manager-Rechte)  
+user / user123       (Standard-Rechte)
+```
 
-Bei Problemen:
-1. Prüfen Sie die [Deployment-Dokumentation](./DEPLOYMENT.md)
-2. Schauen Sie in die Container-Logs: `docker logs skillbox-backend-1`
-3. Öffnen Sie ein Issue im GitHub Repository
+## 📄 **Lizenz**
+
+MIT License
 
 ---
-**Status**: ✅ Production Ready | **Letzte Aktualisierung**: 2025-06-02 
+
+**🔄 Entwicklungsworkflow:** Source Code → Docker Dev → Docker Production  
+**📖 Vollständige Dokumentation:** [DEPLOYMENT.md](DEPLOYMENT.md)  
+**⚡ Quick Reference:** [WORKFLOW_REFERENCE.md](WORKFLOW_REFERENCE.md) 

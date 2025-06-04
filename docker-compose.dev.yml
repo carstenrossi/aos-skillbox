@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  skillbox-backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend.smart
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - HOST=0.0.0.0
+      - CORS_ORIGIN=http://localhost:3000
+      - CORS_CREDENTIALS=true
+      - JWT_SECRET=dev-secret-change-in-production
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - skillbox-network
+
+  skillbox-frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend.smart
+      args:
+        - BUILD_ENV=development
+        - REACT_APP_API_URL=http://localhost:3001
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - skillbox-backend
+    restart: unless-stopped
+    networks:
+      - skillbox-network
+
+volumes:
+  backend_data:
+    driver: local
+  backend_logs:
+    driver: local
+
+networks:
+  skillbox-network:
+    driver: bridge 

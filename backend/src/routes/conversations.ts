@@ -353,12 +353,12 @@ router.post('/:id/messages', authenticateToken as any, async (req: Request, res:
     }
 
     const { id } = req.params;
-    const { message, assistantId } = req.body;
+    const { content } = req.body;
 
-    if (!message || !assistantId) {
+    if (!content) {
       return res.status(400).json({
         success: false,
-        error: { message: 'Message and assistant ID are required' },
+        error: { message: 'Content is required' },
         timestamp: new Date().toISOString()
       });
     }
@@ -383,9 +383,9 @@ router.post('/:id/messages', authenticateToken as any, async (req: Request, res:
       });
     }
 
-    // Get assistant
+    // Get assistant from conversation
     const assistantModel = getAssistantModel();
-    const assistant = await assistantModel.findById(assistantId);
+    const assistant = await assistantModel.findById(conversation.assistant_id);
 
     if (!assistant) {
       return res.status(404).json({
@@ -400,7 +400,7 @@ router.post('/:id/messages', authenticateToken as any, async (req: Request, res:
     const userMessage = await messageModel.create({
       conversation_id: id,
       role: 'user',
-      content: message
+      content: content
     });
 
     // Call AssistantOS API
@@ -410,7 +410,7 @@ router.post('/:id/messages', authenticateToken as any, async (req: Request, res:
         messages: [
           {
             role: 'user',
-            content: message
+            content: content
           }
         ],
         max_tokens: 1000,
@@ -485,10 +485,19 @@ router.post('/:id/messages', authenticateToken as any, async (req: Request, res:
       });
 
       return res.json({
-        response: assistantResponseContent,
-        conversationId: id,
-        messageId: assistantMessage.id,
-        assistantId,
+        success: true,
+        data: {
+          message: {
+            id: assistantMessage.id,
+            content: assistantResponseContent,
+            role: 'assistant',
+            timestamp: new Date().toISOString()
+          },
+          conversation: {
+            id: id,
+            title: conversation.title
+          }
+        },
         timestamp: new Date().toISOString()
       });
 

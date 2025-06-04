@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  skillbox-backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend.smart
+    # Ports removed - Elestio reverse proxy will handle routing
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - HOST=0.0.0.0
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGIN=${CORS_ORIGIN:-https://skillboxdocker-u31060.vm.elestio.app,http://localhost:3000}
+      - CORS_CREDENTIALS=true
+    volumes:
+      - backend_data:/app/data
+      - backend_logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - skillbox-network
+
+  skillbox-frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend.smart
+      args:
+        - BUILD_ENV=production
+        - REACT_APP_API_URL=""
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - skillbox-backend
+    restart: unless-stopped
+    networks:
+      - skillbox-network
+
+volumes:
+  backend_data:
+    driver: local
+  backend_logs:
+    driver: local
+
+networks:
+  skillbox-network:
+    driver: bridge 

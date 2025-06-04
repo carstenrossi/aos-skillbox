@@ -61,7 +61,11 @@ router.post('/:conversationId/messages', async (req, res) => {
     const { message, assistantId } = req.body;
     
     if (!message || !assistantId) {
-      return res.status(400).json({ error: 'Message and assistant ID are required' });
+      return res.status(400).json({ 
+        success: false, 
+        error: { message: 'Message and assistant ID are required' },
+        timestamp: new Date().toISOString()
+      });
     }
     
     // Get assistant from SQLite database
@@ -69,7 +73,11 @@ router.post('/:conversationId/messages', async (req, res) => {
     const assistant = await assistantModel.findById(assistantId);
     
     if (!assistant) {
-      return res.status(404).json({ error: 'Assistant not found' });
+      return res.status(404).json({ 
+        success: false, 
+        error: { message: 'Assistant not found' },
+        timestamp: new Date().toISOString()
+      });
     }
     
     console.log(`🤖 Using assistant: ${assistant.name} (${assistantId})`);
@@ -115,10 +123,13 @@ router.post('/:conversationId/messages', async (req, res) => {
       const aiResponse = response.data as any;
       
       return res.json({
-        response: aiResponse.choices?.[0]?.message?.content || 'No response from AI',
-        conversationId,
-        messageId: `msg_${Date.now()}_${Math.random().toString(36).substring(2)}`,
-        assistantId,
+        success: true,
+        data: {
+          response: aiResponse.choices?.[0]?.message?.content || 'No response from AI',
+          conversationId,
+          messageId: `msg_${Date.now()}_${Math.random().toString(36).substring(2)}`,
+          assistantId,
+        },
         timestamp: new Date().toISOString()
       });
       
@@ -126,20 +137,36 @@ router.post('/:conversationId/messages', async (req, res) => {
       console.error('API Error:', apiError.response?.data || apiError.message);
       
       if (apiError.response?.status === 401) {
-        return res.status(401).json({ error: 'Authentication failed with AI service' });
+        return res.status(401).json({ 
+          success: false, 
+          error: { message: 'Authentication failed with AI service' },
+          timestamp: new Date().toISOString()
+        });
       } else if (apiError.response?.status === 404) {
-        return res.status(404).json({ error: 'AI service endpoint not found' });
+        return res.status(404).json({ 
+          success: false, 
+          error: { message: 'AI service endpoint not found' },
+          timestamp: new Date().toISOString()
+        });
       } else {
         return res.status(500).json({ 
-          error: 'AI service error',
-          details: apiError.response?.data || apiError.message
+          success: false,
+          error: { 
+            message: 'AI service error',
+            details: apiError.response?.data || apiError.message
+          },
+          timestamp: new Date().toISOString()
         });
       }
     }
     
   } catch (error) {
     console.error('Error sending message:', error);
-    return res.status(500).json({ error: 'Failed to send message' });
+    return res.status(500).json({ 
+      success: false, 
+      error: { message: 'Failed to send message' },
+      timestamp: new Date().toISOString()
+    });
   }
 });
 

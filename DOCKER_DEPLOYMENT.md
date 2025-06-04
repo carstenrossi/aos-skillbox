@@ -177,16 +177,20 @@ Für neue Versionen:
 Neue Dateien (ohne Code-Änderungen):
 ```
 Skillbox/
-├── docker-compose.yml          # Für lokales Development (direct mount)
-├── docker-compose.prod.yml     # Für Elestio Deployment (volumes)
+├── docker-compose.dev.yml      # Für lokales Docker-Development (Port 3003)
+├── docker-compose.prod.yml     # ✅ Für Elestio Deployment (Multi-Platform Images)
+├── docker-compose.prod.smart.yml # Für lokale Builds ohne Images
 ├── docker/
-│   ├── Dockerfile.backend      # Backend Docker-Konfiguration
-│   ├── Dockerfile.frontend     # Frontend Docker-Konfiguration
-│   └── env.template           # Environment-Template
+│   ├── Dockerfile.backend.smart    # Backend Multi-Platform Docker-Konfiguration
+│   ├── Dockerfile.frontend.smart   # Frontend Multi-Platform Docker-Konfiguration
+│   ├── Dockerfile.backend         # Legacy Backend Dockerfile
+│   ├── Dockerfile.frontend        # Legacy Frontend Dockerfile
+│   └── env.template               # Environment-Template
 ├── scripts/
-│   ├── docker-setup.sh        # Lokales Setup mit Permission-Fix
-│   └── build-and-push.sh      # Build/Push-Automatisierung
-└── DOCKER_DEPLOYMENT.md       # Diese Anleitung
+│   ├── docker-setup.sh            # Lokales Setup mit Permission-Fix
+│   ├── build-and-push.sh          # Legacy Build/Push-Script
+│   └── build-smart.sh             # ✅ Moderner Multi-Platform Build/Push
+└── DOCKER_DEPLOYMENT.md           # Diese Anleitung
 ```
 
 ## ⚠️ Wichtige Verbesserungen

@@ -15,10 +15,18 @@ router.get('/', async (req, res) => {
       jwt_token: assistant.jwt_token ? '***' : undefined
     }));
     
-    return res.json(sanitizedAssistants);
+    return res.json({
+      success: true,
+      data: sanitizedAssistants,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     console.error('Error fetching assistants:', error);
-    return res.status(500).json({ error: 'Failed to fetch assistants' });
+    return res.status(500).json({ 
+      success: false, 
+      error: { message: 'Failed to fetch assistants' },
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -29,7 +37,11 @@ router.get('/:id', async (req, res) => {
     const assistant = await assistantModel.findById(req.params.id);
     
     if (!assistant) {
-      return res.status(404).json({ error: 'Assistant not found' });
+      return res.status(404).json({ 
+        success: false, 
+        error: { message: 'Assistant not found' },
+        timestamp: new Date().toISOString()
+      });
     }
     
     // Hide JWT token in response for security
@@ -38,10 +50,18 @@ router.get('/:id', async (req, res) => {
       jwt_token: assistant.jwt_token ? '***' : undefined
     };
     
-    return res.json(sanitizedAssistant);
+    return res.json({
+      success: true,
+      data: sanitizedAssistant,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     console.error('Error fetching assistant:', error);
-    return res.status(500).json({ error: 'Failed to fetch assistant' });
+    return res.status(500).json({ 
+      success: false, 
+      error: { message: 'Failed to fetch assistant' },
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -61,7 +81,11 @@ router.post('/', async (req, res) => {
     } = req.body;
     
     if (!name || !api_url) {
-      return res.status(400).json({ error: 'Name and API URL are required' });
+      return res.status(400).json({ 
+        success: false, 
+        error: { message: 'Name and API URL are required' },
+        timestamp: new Date().toISOString()
+      });
     }
     
     console.log(`🔧 Creating new assistant:`, {
@@ -81,7 +105,11 @@ router.post('/', async (req, res) => {
     // Check if assistant with same name already exists
     const existing = await assistantModel.findByName(name);
     if (existing) {
-      return res.status(409).json({ error: 'Assistant with this name already exists' });
+      return res.status(409).json({ 
+        success: false, 
+        error: { message: 'Assistant with this name already exists' },
+        timestamp: new Date().toISOString()
+      });
     }
     
     const assistant = await assistantModel.create({
@@ -104,10 +132,18 @@ router.post('/', async (req, res) => {
       jwt_token: assistant.jwt_token ? '***' : undefined
     };
     
-    return res.status(201).json(sanitizedAssistant);
+    return res.status(201).json({
+      success: true,
+      data: sanitizedAssistant,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     console.error('Error creating assistant:', error);
-    return res.status(500).json({ error: 'Failed to create assistant' });
+    return res.status(500).json({ 
+      success: false, 
+      error: { message: 'Failed to create assistant' },
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -155,7 +191,11 @@ router.put('/:id', async (req, res) => {
     const assistant = await assistantModel.update(req.params.id, updateData);
     
     if (!assistant) {
-      return res.status(404).json({ error: 'Assistant not found' });
+      return res.status(404).json({ 
+        success: false, 
+        error: { message: 'Assistant not found' },
+        timestamp: new Date().toISOString()
+      });
     }
     
     console.log(`✅ Assistant ${req.params.id} updated successfully`);
@@ -166,10 +206,18 @@ router.put('/:id', async (req, res) => {
       jwt_token: assistant.jwt_token ? '***' : undefined
     };
     
-    return res.json(sanitizedAssistant);
+    return res.json({
+      success: true,
+      data: sanitizedAssistant,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     console.error('Error updating assistant:', error);
-    return res.status(500).json({ error: 'Failed to update assistant' });
+    return res.status(500).json({ 
+      success: false, 
+      error: { message: 'Failed to update assistant' },
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -180,13 +228,25 @@ router.delete('/:id', async (req, res) => {
     const deleted = await assistantModel.delete(req.params.id);
     
     if (!deleted) {
-      return res.status(404).json({ error: 'Assistant not found' });
+      return res.status(404).json({ 
+        success: false, 
+        error: { message: 'Assistant not found' },
+        timestamp: new Date().toISOString()
+      });
     }
     
-    return res.json({ message: 'Assistant deleted successfully' });
+    return res.json({ 
+      success: true, 
+      message: 'Assistant deleted successfully',
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     console.error('Error deleting assistant:', error);
-    return res.status(500).json({ error: 'Failed to delete assistant' });
+    return res.status(500).json({ 
+      success: false, 
+      error: { message: 'Failed to delete assistant' },
+      timestamp: new Date().toISOString()
+    });
   }
 });
 

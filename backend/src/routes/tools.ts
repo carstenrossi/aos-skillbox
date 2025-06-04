@@ -21,10 +21,18 @@ router.get('/', async (req, res) => {
   try {
     const toolModel = await getToolModel();
     const activeTools = await toolModel.getActiveTools();
-    return res.json(activeTools);
+    return res.json({
+      success: true,
+      data: activeTools,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     console.error('Error fetching tools:', error);
-    return res.status(500).json({ error: 'Failed to fetch tools' });
+    return res.status(500).json({ 
+      success: false, 
+      error: { message: 'Failed to fetch tools' },
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -55,10 +63,18 @@ router.post('/admin', async (req, res) => {
     const createdBy = (req as any).user?.id || 'unknown'; // TODO: Echte User-ID verwenden
     
     const newTool = await toolModel.createTool(toolData, createdBy);
-    return res.status(201).json(newTool);
+    return res.status(201).json({
+      success: true,
+      data: newTool,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     console.error('Error creating tool:', error);
-    return res.status(500).json({ error: 'Failed to create tool' });
+    return res.status(500).json({ 
+      success: false, 
+      error: { message: 'Failed to create tool' },
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -76,13 +92,25 @@ router.put('/admin/:id', async (req, res) => {
     const updatedTool = await toolModel.updateTool(toolId, toolData, updatedBy);
     
     if (!updatedTool) {
-      return res.status(404).json({ error: 'Tool not found' });
+      return res.status(404).json({ 
+        success: false, 
+        error: { message: 'Tool not found' },
+        timestamp: new Date().toISOString()
+      });
     }
     
-    return res.json(updatedTool);
+    return res.json({
+      success: true,
+      data: updatedTool,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     console.error('Error updating tool:', error);
-    return res.status(500).json({ error: 'Failed to update tool' });
+    return res.status(500).json({ 
+      success: false, 
+      error: { message: 'Failed to update tool' },
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -98,13 +126,25 @@ router.delete('/admin/:id', async (req, res) => {
     const deleted = await toolModel.deleteTool(toolId);
     
     if (!deleted) {
-      return res.status(404).json({ error: 'Tool not found' });
+      return res.status(404).json({ 
+        success: false, 
+        error: { message: 'Tool not found' },
+        timestamp: new Date().toISOString()
+      });
     }
     
-    return res.json({ message: 'Tool successfully deleted' });
+    return res.json({ 
+      success: true, 
+      message: 'Tool successfully deleted',
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     console.error('Error deleting tool:', error);
-    return res.status(500).json({ error: 'Failed to delete tool' });
+    return res.status(500).json({ 
+      success: false, 
+      error: { message: 'Failed to delete tool' },
+      timestamp: new Date().toISOString()
+    });
   }
 });
 

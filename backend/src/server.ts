@@ -14,6 +14,9 @@ import { logger } from './utils/logger';
 // import { connectDatabase } from './config/database';
 // import { connectRedis } from './config/redis';
 
+// Import our new configuration
+import config from './config';
+
 // Import routes
 import authRoutes from './routes/auth';
 import assistantRoutes from './routes/assistants';
@@ -25,8 +28,8 @@ import { toolsRouter } from './routes/tools';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
-const HOST = process.env.HOST || 'localhost';
+const PORT = config.PORT;
+const HOST = config.HOST;
 
 let server: Server;
 
@@ -49,10 +52,10 @@ app.use(compression());
 app.use(morgan(process.env.LOG_FORMAT || 'combined'));
 app.use(limiter);
 
-// CORS configuration
+// CORS configuration using our config
 app.use(cors({
-  origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
-  credentials: process.env.CORS_CREDENTIALS === 'true',
+  origin: config.CORS_ORIGIN.split(',').map(origin => origin.trim()),
+  credentials: config.CORS_CREDENTIALS,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
@@ -70,8 +73,14 @@ app.get('/health', (req, res) => {
     status: 'healthy',
     timestamp: new Date().toISOString(),
     version: process.env.npm_package_version || '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
-    database: 'SQLite connected'
+    environment: config.NODE_ENV,
+    database: 'SQLite connected',
+    config: {
+      host: config.HOST,
+      port: config.PORT,
+      cors_origin: config.CORS_ORIGIN,
+      database_path: config.DATABASE_PATH
+    }
   });
 });
 

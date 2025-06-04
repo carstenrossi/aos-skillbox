@@ -1,0 +1,65 @@
+# Multi-stage build for Skillbox Frontend with Environment Support
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY frontend/package*.json ./
+
+# Install dependencies
+RUN npm install && npm cache clean --force
+
+# Copy source code
+COPY frontend/ ./
+
+# Build-time environment variable
+ARG BUILD_ENV=production
+ARG REACT_APP_API_URL=""
+
+# Set environment variables for React build
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+ENV NODE_ENV=$BUILD_ENV
+
+# Build the app
+RUN npm run build
+
+# Production stage with nginx
+FROM nginx:alpine AS production
+
+# Install envsubst for dynamic nginx config
+RUN apk add --no-cache gettext curl
+
+# Copy built app to nginx html directory
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# Copy both nginx configurations
+COPY docker/nginx.conf.dev /etc/nginx/nginx.conf.dev
+COPY docker/nginx.conf.prod /etc/nginx/nginx.conf.prod
+
+# Create startup script that selects the correct nginx config
+RUN echo '#!/bin/sh' > /docker-entrypoint.sh && \
+    echo 'echo "🔧 Setting up nginx configuration..."' >> /docker-entrypoint.sh && \
+    echo 'if [ "$NODE_ENV" = "development" ]; then' >> /docker-entrypoint.sh && \
+    echo '  echo "📋 Using development nginx configuration"' >> /docker-entrypoint.sh && \
+    echo '  cp /etc/nginx/nginx.conf.dev /etc/nginx/nginx.conf' >> /docker-entrypoint.sh && \
+    echo 'else' >> /docker-entrypoint.sh && \
+    echo '  echo "📋 Using production nginx configuration"' >> /docker-entrypoint.sh && \
+    echo '  cp /etc/nginx/nginx.conf.prod /etc/nginx/nginx.conf' >> /docker-entrypoint.sh && \
+    echo 'fi' >> /docker-entrypoint.sh && \
+    echo 'echo "✅ Nginx configuration ready"' >> /docker-entrypoint.sh && \
+    echo 'echo "🚀 Starting Nginx..."' >> /docker-entrypoint.sh && \
+    echo 'exec nginx -g "daemon off;"' >> /docker-entrypoint.sh && \
+    chmod +x /docker-entrypoint.sh
+
+# Default environment
+ENV NODE_ENV=production
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost/ || exit 1
+
+# Expose port
+EXPOSE 80
+
+# Start with our environment-aware script
+CMD ["/docker-entrypoint.sh"] 
