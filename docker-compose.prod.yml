@@ -10,7 +10,7 @@ services:
       - PORT=3001
       - HOST=0.0.0.0  # Wichtig: Auf alle Interfaces binden
       - JWT_SECRET=${JWT_SECRET}
-      - CORS_ORIGIN=https://skillboxdocker-u31060.vm.elestio.app,http://localhost:3000,http://localhost:3003
+      - CORS_ORIGIN=https://skillboxdocker2-u31060.vm.elestio.app,http://localhost:3000,http://localhost:3003
       - CORS_CREDENTIALS=true
     volumes:
       - backend_data:/app/data
