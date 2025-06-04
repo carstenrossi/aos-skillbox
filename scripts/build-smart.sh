@@ -178,7 +178,7 @@ setup_platform() {
     # Auto-detect platform if not specified
     if [[ -z "$PLATFORM" && "$MULTI_PLATFORM" != true ]]; then
         # For development: use local platform
-        # For production: use amd64 for Elestio compatibility
+        # For production: ALWAYS use multi-platform for maximum compatibility
         if [[ "$ENVIRONMENT" == "development" ]]; then
             PLATFORM="linux/$(uname -m)"
             if [[ "$PLATFORM" == "linux/arm64" ]]; then
@@ -188,8 +188,9 @@ setup_platform() {
             fi
             print_status "Auto-detected platform for development: $PLATFORM"
         else
-            PLATFORM="linux/amd64"
-            print_status "Using AMD64 platform for production (Elestio compatibility)"
+            # FIXED: Always use multi-platform for production
+            MULTI_PLATFORM=true
+            print_status "🔧 Auto-enabling Multi-Platform for production (AMD64 + ARM64 compatibility)"
         fi
     fi
 
@@ -259,59 +260,89 @@ else
     exit 1
 fi
 
-# Tag images for registry if pushing
+# FIXED: Multi-Platform aware push logic
 if [[ "$PUSH" == true ]]; then
-    print_status "Preparing to push images to registry..."
-    
-    # Generate timestamp tag
-    TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-    
-    # Get image IDs from docker-compose
-    print_status "Getting image information..."
-    BACKEND_IMAGE=$(docker-compose -f "$COMPOSE_FILE" images -q skillbox-backend 2>/dev/null || echo "")
-    FRONTEND_IMAGE=$(docker-compose -f "$COMPOSE_FILE" images -q skillbox-frontend 2>/dev/null || echo "")
-    
-    if [[ -z "$BACKEND_IMAGE" || -z "$FRONTEND_IMAGE" ]]; then
-        print_warning "Could not get image IDs from compose, trying alternative method..."
-        BACKEND_IMAGE=$(docker images --format "table {{.Repository}}:{{.Tag}}\t{{.ID}}" | grep skillbox-backend | head -1 | awk '{print $2}')
-        FRONTEND_IMAGE=$(docker images --format "table {{.Repository}}:{{.Tag}}\t{{.ID}}" | grep skillbox-frontend | head -1 | awk '{print $2}')
+    if [[ "$MULTI_PLATFORM" == true ]]; then
+        # Multi-Platform builds: Images are already pushed during build with --push
+        print_success "🚀 Multi-Platform images pushed successfully during build!"
+        
+        # Show which images were built
+        print_status "📦 Multi-Platform images available:"
+        echo "   - $REGISTRY/skillbox-backend:latest-$ENVIRONMENT (AMD64 + ARM64)"
+        echo "   - $REGISTRY/skillbox-frontend:latest-$ENVIRONMENT (AMD64 + ARM64)"
+        
+        # Verify multi-platform manifests
+        print_status "🔍 Verifying Multi-Platform manifests..."
+        if docker buildx imagetools inspect "$REGISTRY/skillbox-backend:latest-$ENVIRONMENT" >/dev/null 2>&1; then
+            print_success "✅ Backend Multi-Platform manifest verified"
+        else
+            print_warning "⚠️ Backend manifest verification failed"
+        fi
+        
+        if docker buildx imagetools inspect "$REGISTRY/skillbox-frontend:latest-$ENVIRONMENT" >/dev/null 2>&1; then
+            print_success "✅ Frontend Multi-Platform manifest verified"
+        else
+            print_warning "⚠️ Frontend manifest verification failed"
+        fi
+        
+    else
+        # Single-Platform builds: Traditional tag/push approach
+        print_status "Preparing to push single-platform images to registry..."
+        
+        # Generate timestamp tag
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        
+        # Get image IDs from docker-compose
+        print_status "Getting image information..."
+        BACKEND_IMAGE=$(docker-compose -f "$COMPOSE_FILE" images -q skillbox-backend 2>/dev/null || echo "")
+        FRONTEND_IMAGE=$(docker-compose -f "$COMPOSE_FILE" images -q skillbox-frontend 2>/dev/null || echo "")
+        
+        if [[ -z "$BACKEND_IMAGE" || -z "$FRONTEND_IMAGE" ]]; then
+            print_warning "Could not get image IDs from compose, trying alternative method..."
+            BACKEND_IMAGE=$(docker images --format "table {{.Repository}}:{{.Tag}}\t{{.ID}}" | grep skillbox-backend | head -1 | awk '{print $2}')
+            FRONTEND_IMAGE=$(docker images --format "table {{.Repository}}:{{.Tag}}\t{{.ID}}" | grep skillbox-frontend | head -1 | awk '{print $2}')
+        fi
+        
+        if [[ -z "$BACKEND_IMAGE" || -z "$FRONTEND_IMAGE" ]]; then
+            print_error "Could not find built images"
+            exit 1
+        fi
+        
+        # Tag images
+        print_status "Tagging images..."
+        docker tag "$BACKEND_IMAGE" "$REGISTRY/skillbox-backend:$TIMESTAMP"
+        docker tag "$BACKEND_IMAGE" "$REGISTRY/skillbox-backend:latest-$ENVIRONMENT"
+        docker tag "$FRONTEND_IMAGE" "$REGISTRY/skillbox-frontend:$TIMESTAMP"
+        docker tag "$FRONTEND_IMAGE" "$REGISTRY/skillbox-frontend:latest-$ENVIRONMENT"
+        
+        # Push images
+        print_status "Pushing images to registry..."
+        docker push "$REGISTRY/skillbox-backend:$TIMESTAMP"
+        docker push "$REGISTRY/skillbox-backend:latest-$ENVIRONMENT"
+        docker push "$REGISTRY/skillbox-frontend:$TIMESTAMP"
+        docker push "$REGISTRY/skillbox-frontend:latest-$ENVIRONMENT"
+        
+        print_success "🚀 Single-platform images pushed successfully!"
+        echo "📦 Backend:  $REGISTRY/skillbox-backend:$TIMESTAMP"
+        echo "📦 Frontend: $REGISTRY/skillbox-frontend:$TIMESTAMP"
+        echo "🏷️ Latest:   $REGISTRY/skillbox-backend:latest-$ENVIRONMENT"
+        echo "🏷️ Latest:   $REGISTRY/skillbox-frontend:latest-$ENVIRONMENT"
     fi
-    
-    if [[ -z "$BACKEND_IMAGE" || -z "$FRONTEND_IMAGE" ]]; then
-        print_error "Could not find built images"
-        exit 1
-    fi
-    
-    # Tag images
-    print_status "Tagging images..."
-    docker tag "$BACKEND_IMAGE" "$REGISTRY/skillbox-backend:$TIMESTAMP"
-    docker tag "$BACKEND_IMAGE" "$REGISTRY/skillbox-backend:latest-$ENVIRONMENT"
-    docker tag "$FRONTEND_IMAGE" "$REGISTRY/skillbox-frontend:$TIMESTAMP"
-    docker tag "$FRONTEND_IMAGE" "$REGISTRY/skillbox-frontend:latest-$ENVIRONMENT"
-    
-    # Push images
-    print_status "Pushing images to registry..."
-    docker push "$REGISTRY/skillbox-backend:$TIMESTAMP"
-    docker push "$REGISTRY/skillbox-backend:latest-$ENVIRONMENT"
-    docker push "$REGISTRY/skillbox-frontend:$TIMESTAMP"
-    docker push "$REGISTRY/skillbox-frontend:latest-$ENVIRONMENT"
-    
-    print_success "🚀 Images pushed successfully!"
-    echo "📦 Backend:  $REGISTRY/skillbox-backend:$TIMESTAMP"
-    echo "📦 Frontend: $REGISTRY/skillbox-frontend:$TIMESTAMP"
-    echo "🏷️ Latest:   $REGISTRY/skillbox-backend:latest-$ENVIRONMENT"
-    echo "🏷️ Latest:   $REGISTRY/skillbox-frontend:latest-$ENVIRONMENT"
     
     # Production deployment notes
     if [[ "$ENVIRONMENT" == "production" ]]; then
         echo ""
         print_workflow "🔄 NEXT STEPS FOR PRODUCTION DEPLOYMENT:"
-        echo "1. Update docker-compose.prod.yml with new image tags:"
-        echo "   - skillbox-backend:$TIMESTAMP"
-        echo "   - skillbox-frontend:$TIMESTAMP"
+        echo "1. Update docker-compose.prod.yml with image tags:"
+        if [[ "$MULTI_PLATFORM" == true ]]; then
+            echo "   - Use: latest-production (Multi-Platform AMD64+ARM64)"
+        else
+            echo "   - skillbox-backend:$TIMESTAMP"
+            echo "   - skillbox-frontend:$TIMESTAMP"
+        fi
         echo "2. Commit the updated docker-compose.prod.yml"
         echo "3. Push to GitHub to trigger Elestio deployment"
-        echo "4. Test at: https://skillboxdocker-u31060.vm.elestio.app"
+        echo "4. Test at: https://skillboxdocker2-u31060.vm.elestio.app"
     fi
 fi
 
