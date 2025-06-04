@@ -62,28 +62,54 @@ docker-compose -f docker-compose.dev.yml up -d
 
 #### 3️⃣ **Production Build & Push**
 ```bash
-# Production Images bauen und pushen
+# Production Images bauen und pushen (automatisch Multi-Platform!)
 ./scripts/build-smart.sh -e production -p
 
-# docker-compose.prod.yml mit neuen Tags aktualisieren
-# Elestio Deployment triggern
+# ✅ Automatisch: AMD64 + ARM64 Support für maximum compatibility
+# ✅ Automatisch: latest-production Tags
+# ✅ Automatisch: Multi-Platform Manifest Verification 
+# ✅ Automatisch: Manifest-Schutz (keine Überschreibung)
 ```
-**Live-Test:** https://skillboxdocker-u31060.vm.elestio.app ✅
+**Live-Test:** https://skillboxdocker2-u31060.vm.elestio.app ✅
 
 ## 🛠️ Build Scripts
 
 ### Smart Build System
 - **Script:** `./scripts/build-smart.sh`
 - **Unterstützte Environments:** development, production
-- **Features:** Automatische Tagging, Multi-Stage Builds, Push zu Registry
+- **Features:** 
+  - Automatische Tagging
+  - Multi-Stage Builds
+  - **Multi-Platform Support (AMD64 + ARM64)**
+  - **Manifest-Protection**
+  - **Platform Verification**
+  - Push zu Registry
+
+### 🚨 **Platform-Kompatibilität (FIXED)**
+
+**Das Script löst automatisch Platform-Probleme:**
+
+✅ **Production**: Automatisch Multi-Platform (AMD64 + ARM64)  
+✅ **Elestio**: Server kann die richtige Architektur auswählen  
+✅ **Manifest-Schutz**: Multi-Platform Manifests werden nicht überschrieben  
+✅ **Verification**: Script prüft Manifests nach dem Build  
+
+**Verhindert diese Probleme:**
+- ❌ "exec format error" auf AMD64 Servern
+- ❌ Platform-Mismatch beim Docker Pull  
+- ❌ Container starten aber funktionieren nicht
+- ❌ 502 Bad Gateway durch nicht funktionsfähige Container
 
 ### Verwendung:
 ```bash
 # Development Build (lokal testen)
 ./scripts/build-smart.sh -e development
 
-# Production Build + Push
+# Production Build + Push (automatisch Multi-Platform!)
 ./scripts/build-smart.sh -e production -p
+
+# Bei Platform-Problemen: Multi-Platform Manifest prüfen
+docker buildx imagetools inspect ghcr.io/carstenrossi/skillbox-backend:latest-production
 ```
 
 ## 🔧 API Konfiguration
@@ -97,7 +123,7 @@ Die Frontend-Konfiguration erkennt automatisch die Umgebung:
 
 ### CORS-Konfiguration (Backend)
 ```env
-CORS_ORIGIN=https://skillboxdocker-u31060.vm.elestio.app,http://localhost:3000,http://localhost:3003
+CORS_ORIGIN=https://skillboxdocker2-u31060.vm.elestio.app,http://localhost:3000,http://localhost:3003
 ```
 
 ## 🎯 Best Practices
@@ -108,19 +134,22 @@ CORS_ORIGIN=https://skillboxdocker-u31060.vm.elestio.app,http://localhost:3000,h
 - **Smart Build Script** für konsistente Builds verwenden
 - **API Response Format** standardisiert verwenden
 - **Git Commits** vor Docker Builds machen
+- **latest-production Tags** in docker-compose.prod.yml verwenden
 
 ### ❌ DON'Ts:
 - Niemals direkt in Docker-Containern entwickeln
 - Nicht Production pushen ohne Docker Dev Test
 - Nicht während laufender Production-Tests deployen
-- Keine manuellen Docker Builds (Smart Script verwenden)
+- **Keine manuellen Docker Builds** (Smart Script verwenden)
+- **Niemals Platform-spezifische Tags manuell erstellen**
+- **Niemals Multi-Platform Manifests überschreiben**
 
 ## 📁 Wichtige Dateien
 
 ```
-├── scripts/build-smart.sh          # Build Automation
+├── scripts/build-smart.sh          # Build Automation (FIXED)
 ├── docker-compose.dev.yml         # Development Container
-├── docker-compose.prod.yml        # Production Container  
+├── docker-compose.prod.yml        # Production Container (FIXED)
 ├── docker/Dockerfile.*.smart      # Multi-Stage Dockerfiles
 ├── frontend/src/config/index.ts   # Environment Detection
 └── DEPLOYMENT.md                  # Diese Dokumentation
@@ -140,15 +169,47 @@ CORS_ORIGIN=https://skillboxdocker-u31060.vm.elestio.app,http://localhost:3000,h
 - **Ursache:** Meist Dependency oder Context Issues
 - **Lösung:** Smart Build Script verwenden, nicht manuelle Builds
 
+### **Problem: "exec format error" (FIXED)**
+- **Ursache:** Platform-Mismatch (ARM64 Image auf AMD64 Server)
+- **Lösung:** ✅ Automatisch gelöst durch Multi-Platform Production Builds
+- **Verifikation:** Script zeigt "Multi-Platform manifest verified"
+
+### **Problem: 502 Bad Gateway (FIXED)**
+- **Ursache:** Container starten nicht richtig wegen Platform-Problemen
+- **Lösung:** ✅ Automatisch gelöst durch Multi-Platform Support
+- **Check:** Container-Logs sollten keine "exec format error" zeigen
+
 ## 🔄 Synchronisation
 
 **CRITICAL:** Alle 3 Environments müssen identischen Code verwenden!
 
 1. **Source Code Fix** → Git Commit
 2. **Docker Dev Build** → Test & Verify  
-3. **Production Build** → Push & Deploy
+3. **Production Build** → **Multi-Platform Push** & Deploy
 
 **Bei jeder Änderung diesen Workflow befolgen!**
+
+## 🔒 **Platform-Problem Prevention**
+
+### **Automatische Maßnahmen (implementiert):**
+1. ✅ **Production Script** baut automatisch Multi-Platform
+2. ✅ **Manifest-Schutz** verhindert Überschreibung  
+3. ✅ **Verification** prüft Multi-Platform Support
+4. ✅ **latest-production** Tags für konsistente Deployments
+
+### **Manuelle Checks:**
+```bash
+# Bei Problemen: Multi-Platform Manifest prüfen
+docker buildx imagetools inspect ghcr.io/carstenrossi/skillbox-backend:latest-production
+
+# Sollte zeigen:
+# Platform: linux/amd64 ✅
+# Platform: linux/arm64 ✅
+
+# Bei Deployment: Container-Logs prüfen
+# ❌ BAD: "exec format error"
+# ✅ GOOD: Normale Startup-Logs
+```
 
 ---
 
@@ -158,7 +219,8 @@ Bei Problemen mit dem Deployment-Workflow:
 1. Diese Dokumentation konsultieren
 2. Smart Build Script Logs prüfen  
 3. Docker Logs analysieren
-4. Environment-spezifische Configs prüfen
+4. **Multi-Platform Manifests prüfen**
+5. Environment-spezifische Configs prüfen
 
-**Letzte Aktualisierung:** 2025-06-04
-**Version:** 2.0 (nach API Standardisierung) 
+**Letzte Aktualisierung:** 2025-06-04  
+**Version:** 3.0 (nach Platform-Problem Fix) 

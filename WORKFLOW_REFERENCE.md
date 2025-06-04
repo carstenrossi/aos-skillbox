@@ -35,32 +35,64 @@ docker-compose -f docker-compose.dev.yml up -d
 
 ### Stage 3: Production Deployment
 ```bash
-# Build & Push Production Images
+# Build & Push Production Images (automatisch Multi-Platform!)
 ./scripts/build-smart.sh -e production -p
 
-# Update docker-compose.prod.yml with new image tags
-# Deploy to Elestio
+# ✅ Automatisch: AMD64 + ARM64 Support
+# ✅ Automatisch: latest-production Tags
+# ✅ Automatisch: Multi-Platform Manifest Verification
 ```
 
 ---
 
 ## 🔧 **Environment Mapping**
 
-| Environment | Frontend Port | Backend Port | API URL Detection |
-|-------------|---------------|--------------|-------------------|
-| **Local**   | 3000          | 3001         | `localhost:3001`  |
-| **Docker Dev** | 3003      | 3002         | `localhost:3002`  |
-| **Production** | 80        | 3001         | Relative URLs     |
+| Environment | Frontend Port | Backend Port | API URL Detection | Platform Support |
+|-------------|---------------|--------------|-------------------|------------------|
+| **Local**   | 3000          | 3001         | `localhost:3001`  | Local Platform   |
+| **Docker Dev** | 3003      | 3002         | `localhost:3002`  | Local Platform   |
+| **Production** | 80        | 3001         | Relative URLs     | **Multi-Platform (AMD64+ARM64)** |
+
+---
+
+## 🚨 **Platform-Kompatibilität (WICHTIG!)**
+
+### ✅ **Automatisch gelöst:**
+- **Production**: Verwendet automatisch Multi-Platform (AMD64 + ARM64)
+- **Elestio Support**: Server pullt automatisch die richtige Architektur  
+- **Manifest-Schutz**: Multi-Platform Manifests werden nicht überschrieben
+- **Verification**: Script prüft Multi-Platform Manifest nach Build
+
+### 🔍 **Wie erkenne ich Platform-Probleme:**
+```bash
+# ❌ BAD: "exec format error" in Container-Logs
+# ❌ BAD: Platform-Mismatch Warnungen beim Docker Pull
+# ❌ BAD: Container starten aber funktionieren nicht
+
+# ✅ GOOD: Multi-Platform Manifest Verification im Build-Log
+# ✅ GOOD: Container starten und funktionieren korrekt
+```
+
+### 🛠️ **Bei Platform-Problemen:**
+```bash
+# 1. Überprüfe Multi-Platform Manifest
+docker buildx imagetools inspect ghcr.io/carstenrossi/skillbox-backend:latest-production
+
+# 2. Sollte zeigen: linux/amd64 + linux/arm64
+
+# 3. Falls nicht: Neu bauen mit korrigiertem Script
+./scripts/build-smart.sh -e production -p
+```
 
 ---
 
 ## 📁 **Key Files**
 
 - `DEPLOYMENT.md` - Complete workflow documentation
-- `scripts/build-smart.sh` - Automated build script
+- `scripts/build-smart.sh` - **FIXED** Multi-Platform Build script
 - `frontend/src/config/index.ts` - Smart API URL detection
 - `docker-compose.dev.yml` - Development containers
-- `docker-compose.prod.yml` - Production containers
+- `docker-compose.prod.yml` - **FIXED** Production containers mit latest-production
 
 ---
 
@@ -71,6 +103,8 @@ docker-compose -f docker-compose.dev.yml up -d
 | CORS errors | Wrong API URL | Check `config/index.ts` |
 | 401 Auth errors | Token not sent | Check localStorage & headers |
 | API format errors | Inconsistent responses | Use `{ success: true, data: {...} }` |
+| **exec format error** | **Platform mismatch** | **Use production build script (auto Multi-Platform)** |
+| **502 Bad Gateway** | **Container nicht erreichbar** | **Überprüfe Platform + Container-Status** |
 
 ---
 
@@ -81,10 +115,34 @@ docker-compose -f docker-compose.dev.yml up -d
 - [ ] **Docker dev build** successful (`./scripts/build-smart.sh -e development`)
 - [ ] **Docker dev testing** completed (localhost:3003)
 - [ ] **Production build & push** successful (`./scripts/build-smart.sh -e production -p`)
-- [ ] **docker-compose.prod.yml** updated with new image tags
+- [ ] **Multi-Platform manifest** verified (automatisch im Script)
+- [ ] **docker-compose.prod.yml** uses latest-production tags
 - [ ] **Production deployment** tested
 
 ---
 
-**🔄 REMEMBER:** Source Code → Docker Dev → Docker Production  
-**📖 FULL DOCS:** See `DEPLOYMENT.md` 
+## 🔒 **Platform-Problem Prevention**
+
+### **Niemals manuell:**
+```bash
+# ❌ NIEMALS: Manuelle Platform-spezifische Builds
+docker build --platform linux/amd64
+
+# ❌ NIEMALS: Direkte Image Tags ohne Script
+docker tag local-image registry/image:tag
+```
+
+### **Immer verwenden:**
+```bash
+# ✅ IMMER: Smart Build Script für Production
+./scripts/build-smart.sh -e production -p
+
+# ✅ IMMER: latest-production Tags in docker-compose.prod.yml  
+# ✅ IMMER: Multi-Platform Manifest Verification prüfen
+```
+
+---
+
+**🔄 REMEMBER:** Source Code → Docker Dev → Docker Production (Multi-Platform)  
+**📖 FULL DOCS:** See `DEPLOYMENT.md`  
+**🛡️ PLATFORM-SAFE:** Production builds automatisch Multi-Platform! 
