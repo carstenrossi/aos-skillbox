@@ -1551,30 +1551,135 @@ const ToolModal: React.FC<ToolModalProps> = ({
   onSave, 
   onClose 
 }) => {
-  const [isFormValid, setIsFormValid] = useState(true);
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState<Partial<Tool>>({
+    name: tool?.name || '',
+    description: tool?.description || '',
+    url: tool?.url || '',
+    icon: tool?.icon || '🔧',
+    sort_order: tool?.sort_order || 1,
+    is_active: tool?.is_active ?? true,
+    is_external: tool?.is_external ?? true
+  });
+
+  useEffect(() => {
+    if (tool) {
+      setFormData({
+        name: tool.name || '',
+        description: tool.description || '',
+        url: tool.url || '',
+        icon: tool.icon || '🔧',
+        sort_order: tool.sort_order || 1,
+        is_active: tool.is_active ?? true,
+        is_external: tool.is_external ?? true
+      });
+    }
+  }, [tool]);
+
+  const isFormValid = formData.name && formData.description && formData.url && formData.icon;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData as any);
+    if (isFormValid) {
+      onSave(formData);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
+      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <h3 className="text-xl font-semibold mb-4">{isEditing ? 'Tool bearbeiten' : 'Neues Tool erstellen'}</h3>
-        <form onSubmit={handleSubmit}>
-          {/* Formularfelder für das Tool hier (Beispiel) */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Tool Name</label>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tool Name *
+            </label>
             <input 
               type="text" 
-              name="name"
-              defaultValue={tool?.name || ''} 
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              value={formData.name || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              placeholder="Tool-Name eingeben"
+              required
             />
           </div>
-          {/* Weitere Formularfelder... */}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Beschreibung *
+            </label>
+            <textarea 
+              value={formData.description || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              placeholder="Tool-Beschreibung eingeben"
+              rows={3}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              URL *
+            </label>
+            <input 
+              type="url" 
+              value={formData.url || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              placeholder="https://example.com"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Icon *
+            </label>
+            <input 
+              type="text" 
+              value={formData.icon || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, icon: e.target.value }))}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              placeholder="🔧 (Emoji oder Icon-Klasse)"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Sortierreihenfolge
+            </label>
+            <input 
+              type="number" 
+              value={formData.sort_order || 1}
+              onChange={(e) => setFormData(prev => ({ ...prev, sort_order: parseInt(e.target.value) || 1 }))}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              min="1"
+            />
+          </div>
+
+          <div className="flex items-center space-x-6">
+            <label className="flex items-center">
+              <input 
+                type="checkbox" 
+                checked={formData.is_active || false}
+                onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
+                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+              />
+              <span className="ml-2 text-sm text-gray-700">Aktiv</span>
+            </label>
+
+            <label className="flex items-center">
+              <input 
+                type="checkbox" 
+                checked={formData.is_external || false}
+                onChange={(e) => setFormData(prev => ({ ...prev, is_external: e.target.checked }))}
+                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+              />
+              <span className="ml-2 text-sm text-gray-700">Externer Link</span>
+            </label>
+          </div>
+
           <div className="mt-6 flex justify-end space-x-3">
             <button
               type="button"

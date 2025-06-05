@@ -23,7 +23,7 @@ export const AssistantGrid: React.FC<AssistantGridProps> = ({
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#1e2235] flex items-center justify-center text-white text-2xl font-bold">
               {assistant.icon}
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            <h3 className="text-xl font-black text-gray-900 mb-2">
               {assistant.display_name}
             </h3>
             <p className="text-gray-600 text-sm leading-relaxed">
