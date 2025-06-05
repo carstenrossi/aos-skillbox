@@ -1,0 +1,68 @@
+{
+  "short_name": "Skillbox",
+  "name": "AssistantOS Skillbox",
+  "description": "Ihre persönlichen KI-Assistenten für Unternehmen",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#667eea",
+  "background_color": "#667eea",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "de-DE",
+  "categories": ["business", "productivity", "utilities"],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Narrative Assistant",
+      "short_name": "Narrative",
+      "description": "Storytelling und Kommunikation",
+      "url": "/?assistant=narrative",
+      "icons": [{ "src": "logo192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "CSRD Assistant",
+      "short_name": "CSRD",
+      "description": "Nachhaltigkeitsberichterstattung",
+      "url": "/?assistant=csrd",
+      "icons": [{ "src": "logo192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Adoption Assistant",
+      "short_name": "Adoption",
+      "description": "Change Management",
+      "url": "/?assistant=adoption",
+      "icons": [{ "src": "logo192.png", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "screenshot-narrow.png",
+      "sizes": "720x1280",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ]
+}

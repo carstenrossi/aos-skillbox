@@ -1,0 +1,208 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom base styles */
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+}
+
+/* Custom component styles */
+@layer components {
+  /* Glass morphism effect */
+  .glass {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+
+  .glass-dark {
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Avatar cards */
+  .avatar-card {
+    @apply glass rounded-3xl p-8 text-center cursor-pointer transition-all duration-300 shadow-glass hover:shadow-glass-hover hover:-translate-y-2 hover:bg-white relative;
+  }
+
+  .avatar-card:hover {
+    transform: translateY(-10px);
+  }
+
+  /* Button styles */
+  .btn-primary {
+    @apply bg-gradient-skillbox text-white px-6 py-3 rounded-full font-semibold transition-all duration-200 hover:-translate-y-1 hover:shadow-lg active:translate-y-0;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-skillbox-purple border-2 border-skillbox-purple px-6 py-3 rounded-full font-semibold transition-all duration-200 hover:bg-skillbox-purple hover:text-white;
+  }
+
+  /* Input styles */
+  .input-skillbox {
+    @apply w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-skillbox-purple focus:ring-2 focus:ring-skillbox-purple/20 transition-colors outline-none;
+  }
+
+  /* Chat styles */
+  .chat-bubble-user {
+    @apply bg-gradient-skillbox text-white rounded-2xl rounded-br-md px-4 py-3 max-w-xs ml-auto;
+  }
+
+  .chat-bubble-ai {
+    @apply bg-gray-100 text-gray-800 rounded-2xl rounded-bl-md px-4 py-3 max-w-xs mr-auto;
+  }
+
+  /* Typing indicator */
+  .typing-indicator {
+    @apply flex space-x-1 p-3;
+  }
+
+  .typing-dot {
+    @apply w-2 h-2 bg-gray-400 rounded-full animate-bounce;
+  }
+
+  .typing-dot:nth-child(2) {
+    animation-delay: 0.1s;
+  }
+
+  .typing-dot:nth-child(3) {
+    animation-delay: 0.2s;
+  }
+
+  /* Loading spinner */
+  .spinner {
+    @apply animate-spin rounded-full h-6 w-6 border-b-2 border-current;
+  }
+
+  /* Modal overlay */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4;
+  }
+
+  /* Language switcher */
+  .language-switch {
+    @apply flex bg-white/10 rounded-full p-1 space-x-1;
+  }
+
+  .language-option {
+    @apply px-3 py-1 rounded-full text-sm font-medium transition-all cursor-pointer;
+  }
+
+  .language-option.active {
+    @apply bg-white text-skillbox-purple;
+  }
+
+  .language-option:not(.active) {
+    @apply text-white/80 hover:text-white;
+  }
+
+  /* Line clamp utilities */
+  .line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+}
+
+/* Custom utilities */
+@layer utilities {
+  /* Gradient text */
+  .text-gradient {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Animation delays */
+  .delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .delay-300 {
+    animation-delay: 300ms;
+  }
+
+  /* Safe area insets for mobile */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Focus styles for accessibility */
+  .focus-skillbox {
+    @apply focus:outline-none focus:ring-2 focus:ring-skillbox-purple/50 focus:ring-offset-2;
+  }
+}
