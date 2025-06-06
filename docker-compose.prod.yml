@@ -21,7 +21,7 @@ services:
       - skillbox-network
 
   skillbox-frontend:
-    image: ghcr.io/carstenrossi/skillbox-frontend:20250606-170229
+    image: ghcr.io/carstenrossi/skillbox-frontend:20250606-171351
     ports:
       - "3000:80"
     environment:
