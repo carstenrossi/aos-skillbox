@@ -151,10 +151,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
               <div style={{width: '28px'}}></div>
 
               <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
                   <UserPlus className="w-5 h-5 mr-1" />
                   {'Registrieren'}
-                </h2>
+          </h2>
               </div>
             </>
           )}

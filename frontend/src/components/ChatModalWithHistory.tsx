@@ -286,13 +286,13 @@ const ChatModalWithHistory: React.FC<ChatModalWithHistoryProps> = ({
                   <p className="text-sm text-red-800">{error}</p>
                 </div>
                 <div className="text-center mt-4">
-                  <button
-                    onClick={safeRetryLastMessage}
+                <button
+                  onClick={safeRetryLastMessage}
                     className="mt-2 px-4 py-2 text-white rounded-md transition-opacity hover:opacity-90 text-sm"
                     style={{ backgroundColor: '#84dcc6' }}
-                  >
-                    {t.chat.retry}
-                  </button>
+                >
+                  {t.chat.retry}
+                </button>
                 </div>
               </div>
             </div>
@@ -410,20 +410,20 @@ const ChatModalWithHistory: React.FC<ChatModalWithHistoryProps> = ({
           <div className="p-4 border-t border-gray-200">
             {showFileUpload && <FileUpload onUpload={handleFileUpload} onFilesSelected={handleFilesSelected} />}
             <div className="flex items-end space-x-2">
-              <textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder={currentAssistant ? `Nachricht an ${currentAssistant.display_name}...` : t.chat.placeholder}
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder={currentAssistant ? `Nachricht an ${currentAssistant.display_name}...` : t.chat.placeholder}
                 className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[3rem] max-h-32"
-                rows={1}
+                  rows={1}
                 disabled={isLoading || isTyping || !isAuthenticated}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = 'auto';
-                  target.style.height = target.scrollHeight + 'px';
-                }}
-              />
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = 'auto';
+                    target.style.height = target.scrollHeight + 'px';
+                  }}
+                />
               <button
                 onClick={() => setShowFileUpload(!showFileUpload)}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors focus-skillbox"

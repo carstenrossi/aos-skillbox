@@ -24,6 +24,25 @@ interface UseChatReturn {
   loadConversation: (conversationId: string) => Promise<void>;
 }
 
+// Hilfsfunktion zum Extrahieren von Bildern aus Markdown-Text
+const extractImagesFromMarkdown = (content: string): string[] => {
+  console.log('🔍 Extracting images from content:', content);
+  const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+  const images: string[] = [];
+  let match;
+  
+  while ((match = imageRegex.exec(content)) !== null) {
+    const imageUrl = match[2];
+    console.log('🖼️ Found image URL:', imageUrl);
+    if (imageUrl && !images.includes(imageUrl)) {
+      images.push(imageUrl);
+    }
+  }
+  
+  console.log('📋 Extracted images:', images);
+  return images;
+};
+
 export const useChat = (assistant?: Assistant): UseChatReturn => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversation, setConversation] = useState<Conversation | null>(null);
@@ -56,11 +75,18 @@ export const useChat = (assistant?: Assistant): UseChatReturn => {
       // Load messages
       const messagesResponse = await ApiService.getConversationMessages(conversationId);
       if (messagesResponse.success && messagesResponse.data) {
-        const chatMessages: ChatMessage[] = messagesResponse.data.map((msg: Message) => ({
-          ...msg,
-          timestamp: new Date(msg.created_at),
-          isLoading: false
-        }));
+        const chatMessages: ChatMessage[] = messagesResponse.data.map((msg: Message) => {
+          console.log(`🔄 Processing message ${msg.id} - Role: ${msg.role}`);
+          const extractedImages = extractImagesFromMarkdown(msg.content);
+          const processedMessage = {
+            ...msg,
+            timestamp: new Date(msg.created_at),
+            isLoading: false,
+            images: extractedImages.length > 0 ? extractedImages : undefined
+          };
+          console.log(`✅ Processed message with ${extractedImages.length} images:`, extractedImages);
+          return processedMessage;
+        });
         setMessages(chatMessages);
       }
     } catch (err: any) {
@@ -173,6 +199,11 @@ export const useChat = (assistant?: Assistant): UseChatReturn => {
       setMessages(prev => prev.filter(msg => !msg.isLoading));
 
       if (response.response) {
+        console.log('📨 AI Response received:', response.response);
+        
+        // Extrahiere Bilder aus dem Markdown-Text
+        const extractedImages = extractImagesFromMarkdown(response.response);
+        
         // Add actual AI response
         const aiMessage: ChatMessage = {
           id: response.messageId || `ai-${Date.now()}`,
@@ -180,9 +211,11 @@ export const useChat = (assistant?: Assistant): UseChatReturn => {
           role: 'assistant',
           content: response.response,
           created_at: response.timestamp,
-          timestamp: new Date(response.timestamp)
+          timestamp: new Date(response.timestamp),
+          images: extractedImages.length > 0 ? extractedImages : undefined
         };
 
+        console.log('💬 Created AI message with images:', aiMessage.images);
         setMessages(prev => [...prev, aiMessage]);
       }
     } catch (err: any) {

@@ -217,54 +217,54 @@ function App() {
             </div>
 
             <div className="flex items-center">
-              <div className="flex items-center space-x-4">
-                {user ? (
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowUserMenu(!showUserMenu)}
+            <div className="flex items-center space-x-4">
+              {user ? (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
                       className="flex items-center space-x-3 px-3 py-2 rounded-lg text-white transition-opacity hover:opacity-90"
                       style={{ backgroundColor: '#84dcc6' }}
-                    >
-                      <div className="flex items-center space-x-2">
-                        {getRoleInfo(user.role).icon}
-                        <span className="font-medium">{user.fullName || user.username}</span>
-                      </div>
-                      <ChevronDown className="w-4 h-4" />
-                    </button>
+                  >
+                    <div className="flex items-center space-x-2">
+                      {getRoleInfo(user.role).icon}
+                      <span className="font-medium">{user.fullName || user.username}</span>
+                    </div>
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
 
-                    {showUserMenu && (
-                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                        {user.role === 'admin' && (
-                          <button
-                            onClick={() => {
-                              setShowAdminPanel(true);
-                              setShowUserMenu(false);
-                            }}
-                            className="flex items-center space-x-2 w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 transition-colors"
-                          >
-                            <UserCog className="w-4 h-4 mr-2" />
-                            <span>Admin Panel</span>
-                          </button>
-                        )}
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                      {user.role === 'admin' && (
                         <button
-                          onClick={handleLogout}
-                          className="flex items-center space-x-2 w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 transition-colors mt-1"
+                          onClick={() => {
+                            setShowAdminPanel(true);
+                            setShowUserMenu(false);
+                          }}
+                            className="flex items-center space-x-2 w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 transition-colors"
                         >
-                          <LogOut className="w-4 h-4 mr-2" />
-                          <span>Abmelden</span>
+                            <UserCog className="w-4 h-4 mr-2" />
+                          <span>Admin Panel</span>
                         </button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setIsAuthModalOpen(true)}
+                      )}
+                      <button
+                        onClick={handleLogout}
+                          className="flex items-center space-x-2 w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 transition-colors mt-1"
+                      >
+                          <LogOut className="w-4 h-4 mr-2" />
+                        <span>Abmelden</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsAuthModalOpen(true)}
                     className="text-white px-6 py-2 rounded-lg transition-opacity font-medium hover:opacity-90"
                     style={{ backgroundColor: '#84dcc6' }}
-                  >
-                    Anmelden
-                  </button>
-                )}
+                >
+                  Anmelden
+                </button>
+              )}
               </div>
             </div>
           </div>
