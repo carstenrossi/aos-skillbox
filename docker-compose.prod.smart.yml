@@ -34,7 +34,7 @@ services:
         - linux/arm64
       args:
         - BUILD_ENV=production
-        - REACT_APP_API_URL=""
+        - REACT_APP_API_URL=http://skillboxdocker2-u31060.vm.elestio.app:3001
     ports:
       - "3000:80"
     environment:
