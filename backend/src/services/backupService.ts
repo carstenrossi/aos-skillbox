@@ -51,6 +51,16 @@ export class BackupService {
     
     // Clean up old backups on startup
     await this.cleanupOldBackups();
+    
+    // Create startup backup to ensure we have a backup at server start
+    try {
+      console.log('📁 Creating startup backup...');
+      await this.createBackup('manual');
+      console.log('✅ Startup backup completed');
+    } catch (error) {
+      console.warn('⚠️ Failed to create startup backup:', error);
+      // Don't fail server startup if backup fails
+    }
   }
 
   /**
