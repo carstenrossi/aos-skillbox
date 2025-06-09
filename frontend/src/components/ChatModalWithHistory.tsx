@@ -340,8 +340,11 @@ const ChatModalWithHistory: React.FC<ChatModalWithHistoryProps> = ({
                     ) : (
                       <div>
                         <p className="text-sm whitespace-pre-wrap">{
-                          // Remove markdown images from content display
-                          msg.content.replace(/!\[[^\]]*\]\([^)]+\)/g, '').trim()
+                          // Remove markdown images and audio links from content display
+                          msg.content
+                            .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
+                            .replace(/\[Audio anhören\]\([^)]+\)/g, '')
+                            .trim()
                         }</p>
                         {msg.error && (
                           <p className="text-xs text-red-500 mt-1">{msg.error}</p>

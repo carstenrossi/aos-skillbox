@@ -676,9 +676,11 @@ Wenn der Benutzer etwas anderes fragt, antworte normal.`;
               } else if (pluginExecResult.data && (pluginExecResult.data.audio_url || pluginExecResult.data.data?.audio_url)) {
                 // Audio generation result
                 const audioUrl = pluginExecResult.data.audio_url || pluginExecResult.data.data?.audio_url;
+                console.log('🎵 Audio URL detected:', audioUrl?.substring(0, 50) + '...');
                 resultContent = `🎵 **Audio erfolgreich generiert!**\n\n[Audio anhören](${audioUrl})`;
               } else if (pluginExecResult.data && pluginExecResult.data.success) {
                 // Generic success result
+                console.log('🔧 Generic success result for plugin:', pluginName, 'data keys:', Object.keys(pluginExecResult.data));
                 resultContent = `✅ **${pluginName} erfolgreich ausgeführt!**\n\n${pluginExecResult.data.message || 'Operation abgeschlossen.'}`;
               } else {
                 // Fallback

@@ -287,6 +287,7 @@ export class PluginExecutor {
       });
 
       // Create sandbox environment for Node.js plugin execution
+      // Use native fetch (Node.js 18+) - no external dependency needed
       const sandbox: any = {
         console,
         require: null,
@@ -294,14 +295,14 @@ export class PluginExecutor {
         global: null,
         __dirname: null,
         __filename: null,
-        Buffer: null,
+        Buffer: Buffer,  // Allow Buffer for audio/binary data processing
         setTimeout,
         clearTimeout,
         setInterval,
         clearInterval,
         parameters: parameters,
         config: context.config,
-        fetch: (await import('node-fetch')).default
+        fetch: fetch  // Native Node.js 18+ fetch
       };
 
       // Set up fal.ai client if needed

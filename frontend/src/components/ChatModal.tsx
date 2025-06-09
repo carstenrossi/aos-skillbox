@@ -172,7 +172,9 @@ const ChatModal: React.FC<ChatModalProps> = ({
                     </div>
                   ) : (
                     <div>
-                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      <p className="text-sm whitespace-pre-wrap">
+                        {msg.content.replace(/\[Audio anhören\]\([^)]+\)/g, '').trim()}
+                      </p>
                       {msg.error && (
                         <p className="text-xs text-red-500 mt-1">{msg.error}</p>
                       )}
