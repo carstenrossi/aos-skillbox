@@ -1,0 +1,182 @@
+{
+  "name": "zapier_webhook",
+  "display_name": "Zapier Webhook Integration",
+  "description": "Trigger Zapier automations via webhooks",
+  "version": "1.0.0",
+  "author": "Skillbox Team",
+  "plugin_type": "automation",
+  "runtime_type": "webhook",
+  "is_active": true,
+  "is_public": true,
+  
+  "config_schema": {
+    "zapier_webhook_url": {
+      "type": "string",
+      "required": true,
+      "title": "Zapier Webhook URL",
+      "description": "Your Zapier webhook URL (from Webhooks by Zapier trigger)",
+      "placeholder": "https://hooks.zapier.com/hooks/catch/12345/abcdef/"
+    },
+    "authentication_key": {
+      "type": "string",
+      "required": false,
+      "secret": true,
+      "title": "Authentication Key",
+      "description": "Optional authentication key for security",
+      "placeholder": "your-secret-auth-key"
+    },
+    "default_zap_name": {
+      "type": "string",
+      "required": false,
+      "title": "Zap Name",
+      "description": "Name of your Zapier automation for reference",
+      "placeholder": "AI Assistant Notifications"
+    },
+    "include_metadata": {
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "title": "Include Metadata",
+      "description": "Include additional metadata (timestamp, user info, etc.)"
+    }
+  },
+  
+  "manifest": {
+    "name": "zapier_webhook",
+    "display_name": "Zapier Webhook Integration", 
+    "description": "Trigger Zapier automations via webhooks",
+    "version": "1.0.0",
+    "author": "Skillbox Team",
+    "plugin_type": "automation",
+    "runtime_type": "webhook",
+    "functions": [
+      {
+        "name": "trigger_zap",
+        "description": "Trigger a Zapier automation with custom data",
+        "parameters": {
+          "event_type": {
+            "type": "string",
+            "description": "Type of event to trigger",
+            "required": true,
+            "placeholder": "ai_task_completed"
+          },
+          "data": {
+            "type": "object",
+            "description": "Data to send to Zapier",
+            "required": true
+          },
+          "priority": {
+            "type": "enum",
+            "description": "Event priority",
+            "required": false,
+            "default": "normal",
+            "values": ["low", "normal", "high"]
+          }
+        }
+      },
+      {
+        "name": "send_data_to_sheets",
+        "description": "Send data to Google Sheets via Zapier",
+        "parameters": {
+          "sheet_name": {
+            "type": "string",
+            "description": "Name of the Google Sheet",
+            "required": false,
+            "default": "AI Assistant Logs"
+          },
+          "row_data": {
+            "type": "object",
+            "description": "Data to add as new row",
+            "required": true,
+            "properties": {
+              "timestamp": {
+                "type": "string",
+                "description": "Event timestamp"
+              },
+              "user": {
+                "type": "string", 
+                "description": "User name or ID"
+              },
+              "action": {
+                "type": "string",
+                "description": "Action performed"
+              },
+              "result": {
+                "type": "string",
+                "description": "Result or output"
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "create_calendar_event",
+        "description": "Create calendar event via Zapier",
+        "parameters": {
+          "event_title": {
+            "type": "string",
+            "description": "Event title",
+            "required": true
+          },
+          "event_date": {
+            "type": "string",
+            "description": "Event date (YYYY-MM-DD)",
+            "required": true
+          },
+          "event_time": {
+            "type": "string",
+            "description": "Event time (HH:MM)",
+            "required": false
+          },
+          "description": {
+            "type": "string",
+            "description": "Event description",
+            "required": false
+          },
+          "attendees": {
+            "type": "array",
+            "description": "Email addresses of attendees",
+            "required": false
+          }
+        }
+      }
+    ],
+    "webhook_config": {
+      "method": "POST",
+      "content_type": "application/json", 
+      "expected_status_codes": [200, 201],
+      "response_handling": {
+        "success_indicators": ["status"],
+        "ignore_response_body": true
+      }
+    },
+    "examples": [
+      {
+        "name": "Log AI Task Completion",
+        "description": "Log completed AI task to Google Sheets",
+        "function": "send_data_to_sheets",
+        "parameters": {
+          "sheet_name": "AI Task Log",
+          "row_data": {
+            "timestamp": "2024-01-15 14:30:00",
+            "user": "john@example.com",
+            "action": "Image Generation",
+            "result": "Generated mountain landscape image"
+          }
+        }
+      },
+      {
+        "name": "Schedule Follow-up Meeting",
+        "description": "Create calendar event for follow-up",
+        "function": "create_calendar_event",
+        "parameters": {
+          "event_title": "Review AI Generated Content",
+          "event_date": "2024-01-16",
+          "event_time": "10:00",
+          "description": "Review and approve AI generated content from yesterday",
+          "attendees": ["manager@example.com", "designer@example.com"]
+        }
+      }
+    ]
+  }
+} 

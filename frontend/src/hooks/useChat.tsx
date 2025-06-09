@@ -26,20 +26,54 @@ interface UseChatReturn {
 
 // Hilfsfunktion zum Extrahieren von Bildern aus Markdown-Text
 const extractImagesFromMarkdown = (content: string): string[] => {
-  console.log('🔍 Extracting images from content:', content);
   const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
   const images: string[] = [];
   let match;
   
   while ((match = imageRegex.exec(content)) !== null) {
     const imageUrl = match[2];
-    console.log('🖼️ Found image URL:', imageUrl);
     if (imageUrl && !images.includes(imageUrl)) {
       images.push(imageUrl);
     }
   }
   
-  console.log('📋 Extracted images:', images);
+  return images;
+};
+
+// Hilfsfunktion zum Entfernen von Bild-Markdown aus Text
+const removeImageMarkdownFromContent = (content: string): string => {
+  // Entferne Markdown-Bilder aus dem Text, da sie separat angezeigt werden
+  return content.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '').trim();
+};
+
+// Hilfsfunktion zum Extrahieren von Bildern aus Plugin-Metadaten (für alte Nachrichten)
+const extractImagesFromPluginMetadata = (metadata: any): string[] => {
+  const images: string[] = [];
+  
+  if (!metadata) return images;
+  
+  // Check for plugin_result in metadata
+  if (metadata.plugin_result && metadata.plugin_result.image_url) {
+    images.push(metadata.plugin_result.image_url);
+  }
+  
+  // Check for nested plugin_result.data
+  if (metadata.plugin_result && metadata.plugin_result.data && metadata.plugin_result.data.image_url) {
+    images.push(metadata.plugin_result.data.image_url);
+  }
+  
+  // Check for function_call results (older format)
+  if (metadata.function_call && metadata.function_call.executed && metadata.function_call.result) {
+    const result = metadata.function_call.result;
+    if (result.image_url) {
+      images.push(result.image_url);
+    }
+    if (result.data && result.data.image_url) {
+      images.push(result.data.image_url);
+    }
+  }
+  
+  console.log('🔍 Extracted images from metadata:', images);
   return images;
 };
 
@@ -74,17 +108,30 @@ export const useChat = (assistant?: Assistant): UseChatReturn => {
 
       // Load messages
       const messagesResponse = await ApiService.getConversationMessages(conversationId);
+      
       if (messagesResponse.success && messagesResponse.data) {
         const chatMessages: ChatMessage[] = messagesResponse.data.map((msg: Message) => {
-          console.log(`🔄 Processing message ${msg.id} - Role: ${msg.role}`);
-          const extractedImages = extractImagesFromMarkdown(msg.content);
+          
+          // Extract images from markdown first
+          const markdownImages = extractImagesFromMarkdown(msg.content);
+          
+          // If no markdown images found, try to extract from plugin metadata (for old messages)
+          const metadataImages = markdownImages.length === 0 ? extractImagesFromPluginMetadata(msg.metadata) : [];
+          
+          // Combine all found images
+          const allImages = [...markdownImages, ...metadataImages];
+          const uniqueImages = Array.from(new Set(allImages)); // Remove duplicates
+          
+          const cleanedContent = markdownImages.length > 0 ? removeImageMarkdownFromContent(msg.content) : msg.content;
+          
           const processedMessage = {
             ...msg,
+            content: cleanedContent,
             timestamp: new Date(msg.created_at),
             isLoading: false,
-            images: extractedImages.length > 0 ? extractedImages : undefined
+            images: uniqueImages.length > 0 ? uniqueImages : undefined
           };
-          console.log(`✅ Processed message with ${extractedImages.length} images:`, extractedImages);
+          
           return processedMessage;
         });
         setMessages(chatMessages);
@@ -104,7 +151,6 @@ export const useChat = (assistant?: Assistant): UseChatReturn => {
     // Check authentication
     const token = localStorage.getItem('token');
     if (!token) {
-      console.log('No token available, skipping new conversation');
       setError('Sie müssen angemeldet sein, um eine neue Unterhaltung zu starten');
       return;
     }
@@ -145,7 +191,6 @@ export const useChat = (assistant?: Assistant): UseChatReturn => {
     // Check authentication
     const token = localStorage.getItem('token');
     if (!token) {
-      console.log('No token available, skipping message send');
       setError('Sie müssen angemeldet sein, um Nachrichten zu senden');
       return;
     }
@@ -199,23 +244,21 @@ export const useChat = (assistant?: Assistant): UseChatReturn => {
       setMessages(prev => prev.filter(msg => !msg.isLoading));
 
       if (response.response) {
-        console.log('📨 AI Response received:', response.response);
-        
         // Extrahiere Bilder aus dem Markdown-Text
         const extractedImages = extractImagesFromMarkdown(response.response);
+        const cleanedContent = extractedImages.length > 0 ? removeImageMarkdownFromContent(response.response) : response.response;
         
         // Add actual AI response
         const aiMessage: ChatMessage = {
           id: response.messageId || `ai-${Date.now()}`,
           conversation_id: conversation.id,
           role: 'assistant',
-          content: response.response,
+          content: cleanedContent,
           created_at: response.timestamp,
           timestamp: new Date(response.timestamp),
           images: extractedImages.length > 0 ? extractedImages : undefined
         };
 
-        console.log('💬 Created AI message with images:', aiMessage.images);
         setMessages(prev => [...prev, aiMessage]);
       }
     } catch (err: any) {
@@ -250,7 +293,6 @@ export const useChat = (assistant?: Assistant): UseChatReturn => {
 
   // Upload files (placeholder implementation)
   const uploadFiles = useCallback(async (files: File[]) => {
-    console.log('Uploading files:', files);
     // TODO: Implement file upload to backend
     setError('Datei-Upload noch nicht implementiert');
   }, []);

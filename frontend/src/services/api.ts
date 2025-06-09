@@ -1,5 +1,6 @@
 import { ApiResponse, Assistant, Message, Conversation, ConversationResponse } from '../types';
 import { LoginRequest, RegisterRequest, User, SupportedLanguage } from '../types';
+import { Plugin, PluginConfig, AssistantPlugin, PluginExecution } from '../types';
 import config from '../config';
 
 // API Configuration
@@ -450,6 +451,86 @@ export class ApiService {
     return apiRequest<ApiResponse<{ message: string }>>(`/api/tools/admin/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  // Plugin endpoints (Phase 2: Frontend Integration)
+  static async getPlugins() {
+    return apiRequest<ApiResponse<Plugin[]>>('/api/plugins');
+  }
+
+  static async getPlugin(id: string) {
+    return apiRequest<ApiResponse<Plugin>>(`/api/plugins/${id}`);
+  }
+
+  static async createPlugin(pluginData: Partial<Plugin>) {
+    return apiRequest<ApiResponse<Plugin>>('/api/plugins', {
+      method: 'POST',
+      body: JSON.stringify(pluginData),
+    });
+  }
+
+  static async updatePlugin(id: string, pluginData: Partial<Plugin>) {
+    return apiRequest<ApiResponse<Plugin>>(`/api/plugins/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(pluginData),
+    });
+  }
+
+  static async deletePlugin(id: string) {
+    return apiRequest<ApiResponse<any>>(`/api/plugins/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  static async getPluginConfig(id: string) {
+    return apiRequest<ApiResponse<PluginConfig>>(`/api/plugins/${id}/config`);
+  }
+
+  static async updatePluginConfig(id: string, configData: any) {
+    return apiRequest<ApiResponse<PluginConfig>>(`/api/plugins/${id}/config`, {
+      method: 'PUT',
+      body: JSON.stringify(configData),
+    });
+  }
+
+  static async getAssistantPlugins(assistantId: string) {
+    return apiRequest<ApiResponse<AssistantPlugin[]>>(`/api/assistants/${assistantId}/plugins`);
+  }
+
+  static async assignPluginToAssistant(assistantId: string, pluginId: string, config?: any) {
+    return apiRequest<ApiResponse<AssistantPlugin>>(`/api/assistants/${assistantId}/plugins`, {
+      method: 'POST',
+      body: JSON.stringify({ plugin_id: pluginId, config_override: config }),
+    });
+  }
+
+  static async unassignPluginFromAssistant(assistantId: string, pluginId: string) {
+    return apiRequest<ApiResponse<void>>(`/api/assistants/${assistantId}/plugins/${pluginId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  static async updateAssistantPlugin(assistantId: string, pluginId: string, update: Partial<AssistantPlugin>) {
+    return apiRequest<ApiResponse<AssistantPlugin>>(`/api/assistants/${assistantId}/plugins/${pluginId}`, {
+      method: 'PUT',
+      body: JSON.stringify(update),
+    });
+  }
+
+  static async removePluginFromAssistant(assistantId: string, pluginId: string) {
+    return apiRequest<ApiResponse<any>>(`/api/assistants/${assistantId}/plugins/${pluginId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  static async getPluginExecutions(pluginId?: string, assistantId?: string) {
+    let url = '/api/plugin-execution/logs';
+    const params = new URLSearchParams();
+    if (pluginId) params.append('plugin_id', pluginId);
+    if (assistantId) params.append('assistant_id', assistantId);
+    if (params.toString()) url += `?${params.toString()}`;
+    
+    return apiRequest<ApiResponse<PluginExecution[]>>(url);
   }
 }
 

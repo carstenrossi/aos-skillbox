@@ -4,6 +4,7 @@ import { X, Send, Upload, Plus, MessageSquare, ChevronLeft, ChevronRight } from 
 import { translations } from '../utils/translations';
 import { useChat } from '../hooks/useChat';
 import ImageGallery from './ImageGallery';
+import AudioPlayer from './AudioPlayer';
 import FileUpload from './FileUpload';
 import ConversationList from './ConversationList';
 
@@ -338,7 +339,10 @@ const ChatModalWithHistory: React.FC<ChatModalWithHistoryProps> = ({
                       </div>
                     ) : (
                       <div>
-                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                        <p className="text-sm whitespace-pre-wrap">{
+                          // Remove markdown images from content display
+                          msg.content.replace(/!\[[^\]]*\]\([^)]+\)/g, '').trim()
+                        }</p>
                         {msg.error && (
                           <p className="text-xs text-red-500 mt-1">{msg.error}</p>
                         )}
@@ -361,12 +365,46 @@ const ChatModalWithHistory: React.FC<ChatModalWithHistoryProps> = ({
                   )}
 
                   {/* AI Generated Images */}
-                  {msg.images && msg.images.length > 0 && (
-                    <ImageGallery 
-                      images={msg.images} 
-                      className="max-w-sm"
-                    />
-                  )}
+                  {(() => {
+                    // Extract images from content if not already in msg.images
+                    const contentImages = msg.content.match(/!\[[^\]]*\]\(([^)]+)\)/g)?.map(match => {
+                      const urlMatch = match.match(/\(([^)]+)\)/);
+                      return urlMatch ? urlMatch[1] : null;
+                    }).filter((url): url is string => url !== null) || [];
+                    
+                    const allImages = [...(msg.images || []), ...contentImages];
+                    const uniqueImages = Array.from(new Set(allImages));
+                    
+                    return uniqueImages.length > 0 ? (
+                      <ImageGallery 
+                        images={uniqueImages} 
+                        className="max-w-sm"
+                      />
+                    ) : null;
+                  })()}
+
+                  {/* Audio Links */}
+                  {(() => {
+                    // Extract audio links from content
+                    const audioLinkMatches = msg.content.match(/\[Audio anhören\]\(([^)]+)\)/g) || [];
+                    const audioUrls = audioLinkMatches.map(match => {
+                      const urlMatch = match.match(/\(([^)]+)\)/);
+                      return urlMatch ? urlMatch[1] : null;
+                    }).filter((url): url is string => url !== null);
+                    
+                    return audioUrls.length > 0 ? (
+                      <div className="space-y-2">
+                        {audioUrls.map((audioUrl, index) => (
+                          <AudioPlayer
+                            key={index}
+                            audioUrl={audioUrl}
+                            title={`Generiertes Audio ${index + 1}`}
+                            className="max-w-sm"
+                          />
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
 
                   {/* Timestamp */}
                   <p className="text-xs opacity-70 px-2">

@@ -4,6 +4,7 @@ import { X, Send, Upload, Plus } from 'lucide-react';
 import { translations } from '../utils/translations';
 import { useChat } from '../hooks/useChat';
 import ImageGallery from './ImageGallery';
+import AudioPlayer from './AudioPlayer';
 import FileUpload from './FileUpload';
 
 const ChatModal: React.FC<ChatModalProps> = ({
@@ -200,6 +201,29 @@ const ChatModal: React.FC<ChatModalProps> = ({
                     className="max-w-sm"
                   />
                 )}
+
+                {/* Audio Links */}
+                {(() => {
+                  // Extract audio links from content
+                  const audioLinkMatches = msg.content.match(/\[Audio anhören\]\(([^)]+)\)/g) || [];
+                  const audioUrls = audioLinkMatches.map(match => {
+                    const urlMatch = match.match(/\(([^)]+)\)/);
+                    return urlMatch ? urlMatch[1] : null;
+                  }).filter((url): url is string => url !== null);
+                  
+                  return audioUrls.length > 0 ? (
+                    <div className="space-y-2">
+                      {audioUrls.map((audioUrl, index) => (
+                        <AudioPlayer
+                          key={index}
+                          audioUrl={audioUrl}
+                          title={`Generiertes Audio ${index + 1}`}
+                          className="max-w-sm"
+                        />
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
 
                 {/* Timestamp */}
                 <p className="text-xs opacity-70 px-2">

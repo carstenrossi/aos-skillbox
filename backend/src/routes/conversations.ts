@@ -4,8 +4,10 @@ import { AuthenticatedRequest } from '../types';
 import { getConversationModel, getMessageModel } from '../models/Conversation';
 import { getAssistantModel } from '../models/AssistantSQLite';
 import axios from 'axios';
+import { getChatPluginIntegration, ChatMessage as PluginChatMessage } from '../services/chatPluginIntegration';
 
 const router = express.Router();
+const chatPluginIntegration = getChatPluginIntegration();
 
 // GET /api/conversations - Get user's conversations
 router.get('/', authenticateToken as any, async (req: Request, res: Response) => {
@@ -403,150 +405,380 @@ router.post('/:id/messages', authenticateToken as any, async (req: Request, res:
       content: content
     });
 
-    // Call AssistantOS API
+    // 🔥 PLUGIN INTEGRATION: Check for function calls in user message
+    const pluginMessage: PluginChatMessage = {
+      id: userMessage.id,
+      content: content,
+      role: 'user',
+      timestamp: typeof userMessage.created_at === 'string' ? userMessage.created_at : userMessage.created_at.toISOString(),
+      userId: userId,
+      assistantId: assistant.id,
+      conversationId: id
+    };
+
+    let pluginResult: any = null;
+    let pluginEvents: any[] = [];
+
     try {
-      const requestData = {
-        model: assistant.model_name || assistant.name.toLowerCase().replace(/\s+/g, '-'),
-        messages: [
-          {
-            role: 'user',
-            content: content
-          }
-        ],
-        max_tokens: 1000,
-        temperature: 0.7,
-        stream: false
-      };
-
-      const headers: any = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      };
-
-      if (assistant.jwt_token) {
-        headers['Authorization'] = `Bearer ${assistant.jwt_token}`;
-      }
-
-      console.log(`🤖 Using assistant: ${assistant.display_name} (${assistant.id})`);
-      console.log(`🔗 API URL: ${assistant.api_url}`);
-      console.log(`🔑 Using JWT token: ${assistant.jwt_token ? assistant.jwt_token.substring(0, 20) + '...' : 'None'}`);
-      console.log(`🔧 Request for ${assistant.id} model:`, JSON.stringify(requestData, null, 2));
-
-      // Retry mechanism for API calls
-      let response;
-      let lastError;
-      const maxRetries = 3;
-      
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          response = await axios.post(
-            `${assistant.api_url}/api/chat/completions`,
-            requestData,
-            {
-              headers,
-              timeout: 30000
-            }
-          );
-          break; // Success, exit retry loop
-        } catch (retryError: any) {
-          lastError = retryError;
-          console.error(`API attempt ${attempt}/${maxRetries} failed:`, retryError.response?.data || retryError.message);
-          
-          // Don't retry on authentication errors or client errors (4xx)
-          if (retryError.response?.status >= 400 && retryError.response?.status < 500) {
-            break;
-          }
-          
-          // Wait before retry (exponential backoff)
-          if (attempt < maxRetries) {
-            const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
-            console.log(`⏳ Waiting ${waitTime}ms before retry...`);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-          }
+      // Process message for plugin function calls
+      const result = await chatPluginIntegration.processMessage(
+        pluginMessage,
+        async (event) => {
+          pluginEvents.push(event);
         }
-      }
+      );
+      pluginResult = result;
 
-      if (!response) {
-        throw lastError;
-      }
+      // If plugins were executed, handle their results
+      if (pluginResult && pluginResult.functionCalls && pluginResult.functionCalls.length > 0) {
+        console.log(`🎯 Executed ${pluginResult.functionCalls.length} plugin function(s)`);
+        
+        // For image generation plugins, return immediately with generated images
+        const imageResults = pluginResult.pluginResults ? pluginResult.pluginResults.filter((result: any) => 
+          result.success && (result.pluginName.includes('image') || result.pluginName.includes('flux'))
+        ) : [];
 
-      const aiResponse = response.data as any;
-      const assistantResponseContent = aiResponse.choices?.[0]?.message?.content || 'No response from AI';
+        if (imageResults.length > 0) {
+          // Create assistant message with plugin results
+          let assistantContent = pluginResult.processedMessage ? pluginResult.processedMessage.content : 'Plugin-Ausführung abgeschlossen';
+          
+          // Add plugin execution summaries
+          if (pluginResult.pluginResults) {
+            pluginResult.pluginResults.forEach((result: any) => {
+              if (result.success) {
+                assistantContent += `\n\n✅ **${result.pluginName}**: ${result.resultSummary || 'Erfolgreich ausgeführt'}`;
+              } else {
+                assistantContent += `\n\n❌ **${result.pluginName}**: ${result.error || 'Fehler bei der Ausführung'}`;
+              }
+            });
+          }
 
-      // Save assistant message
-      const assistantMessage = await messageModel.create({
-        conversation_id: id,
-        role: 'assistant',
-        content: assistantResponseContent,
-        metadata: {
-          usage: aiResponse.usage,
-          model: assistant.model_name
-        }
-      });
-
-      return res.json({
-        success: true,
-        data: {
-          message: {
-            id: assistantMessage.id,
-            content: assistantResponseContent,
+          const assistantMessage = await messageModel.create({
+            conversation_id: id,
             role: 'assistant',
+            content: assistantContent,
+            metadata: {
+              plugin_execution: true,
+              function_calls: pluginResult.functionCalls || [],
+              plugin_results: pluginResult.pluginResults || [],
+              events: pluginEvents
+            }
+          });
+
+          return res.json({
+            success: true,
+            data: {
+              message: {
+                id: assistantMessage.id,
+                content: assistantContent,
+                role: 'assistant',
+                timestamp: assistantMessage.created_at
+              },
+              conversation: {
+                id: id,
+                title: conversation.title
+              },
+              plugin_execution: {
+                executed: true,
+                function_calls: pluginResult.functionCalls || [],
+                results: pluginResult.pluginResults || [],
+                events: pluginEvents
+              }
+            },
             timestamp: new Date().toISOString()
-          },
-          conversation: {
-            id: id,
-            title: conversation.title
-          }
-        },
-        timestamp: new Date().toISOString()
-      });
-
-    } catch (apiError: any) {
-      console.error('Final API Error after retries:', apiError.response?.data || apiError.message);
-      
-      // Save error message
-      await messageModel.create({
-        conversation_id: id,
-        role: 'assistant',
-        content: 'Es tut mir leid, ich kann momentan nicht antworten. Bitte versuchen Sie es später erneut.',
-        metadata: {
-          error: true,
-          error_message: apiError.message,
-          error_status: apiError.response?.status
+          });
         }
-      });
+      }
+    } catch (pluginError) {
+      console.error('Plugin processing error:', pluginError);
+      // Continue with normal AI processing if plugins fail
+    }
 
-      if (apiError.response?.status === 401) {
-        return res.status(401).json({
-          success: false,
-          error: { message: 'Authentication failed with AI service - Please check JWT token' },
-          timestamp: new Date().toISOString()
+    // 🤖 NORMAL AI PROCESSING: Continue with regular assistant response if no plugins executed
+    console.log(`🤖 Using assistant: ${assistant.display_name} (${assistant.id})`);
+    console.log(`🔗 API URL: ${assistant.api_url}`);
+    console.log(`🔑 Using JWT token: ${assistant.jwt_token ? assistant.jwt_token.substring(0, 10) + '...' : 'None'}`);
+    
+    // 🔌 GET AVAILABLE PLUGINS and build enhanced system prompt
+    let enhancedSystemPrompt = assistant.system_prompt || 'Du bist ein hilfreicher KI-Assistant. Antworte höflich und professionell auf Deutsch.';
+    
+    try {
+      const { getDatabase } = await import('../database/database');
+      const db = getDatabase();
+      
+      const assignedPlugins = await db.all(
+        `SELECT ap.*, p.name, p.display_name, p.description, p.plugin_type, p.manifest
+         FROM assistant_plugins ap
+         JOIN plugins p ON ap.plugin_id = p.id
+         WHERE ap.assistant_id = ? AND ap.is_enabled = 1 AND p.is_active = 1`,
+        [assistant.id]
+      );
+      
+      if (assignedPlugins.length > 0) {
+        console.log(`🔌 Found ${assignedPlugins.length} active plugins for assistant`);
+        
+        // Build function definitions for the AI
+        const functionDefinitions = assignedPlugins.map(plugin => {
+          try {
+            const manifest = JSON.parse(plugin.manifest);
+            const functions = manifest.functions || [];
+            return functions.map((func: any) => ({
+              name: `${plugin.name}.${func.name}`,
+              description: func.description,
+              parameters: func.parameters
+            }));
+          } catch (e) {
+            console.error(`Failed to parse manifest for plugin ${plugin.name}:`, e);
+            return [];
+          }
+        }).flat();
+        
+        if (functionDefinitions.length > 0) {
+          enhancedSystemPrompt += `\n\n🔌 VERFÜGBARE FUNKTIONEN:\nDu hast Zugriff auf folgende Funktionen:\n\n`;
+          
+          functionDefinitions.forEach(func => {
+            enhancedSystemPrompt += `**${func.name}**: ${func.description}\n`;
+            if (func.parameters?.properties) {
+              const params = Object.keys(func.parameters.properties).map(key => 
+                `${key}: ${func.parameters.properties[key].description || func.parameters.properties[key].type}`
+              ).join(', ');
+              enhancedSystemPrompt += `Parameter: ${params}\n`;
+            }
+            enhancedSystemPrompt += '\n';
+          });
+          
+          enhancedSystemPrompt += `WICHTIG: Wenn ein Benutzer nach einer Funktion fragt, die du bereitstellen kannst (z.B. Bildgenerierung), antworte mit einem FUNCTION_CALL in folgendem Format:
+
+FUNCTION_CALL: function_name(parameter1="wert1", parameter2="wert2")
+
+Beispiele:
+- Für Bildgenerierung: FUNCTION_CALL: flux_image_generator.image_gen(prompt="ein futuristischer Roboter")
+- Für Text-to-Speech: FUNCTION_CALL: elevenlabs_tts.generate_speech(text="Hallo Welt", voice_id="Rachel")
+
+Wenn der Benutzer etwas anderes fragt, antworte normal.`;
+        }
+      }
+    } catch (pluginError) {
+      console.error('Error loading plugins for system prompt:', pluginError);
+    }
+    
+    // Prepare AI request
+    const requestData = {
+      model: assistant.model_name || assistant.name.toLowerCase().replace(/\s+/g, '-'),
+      messages: [
+        {
+          role: 'system',
+          content: enhancedSystemPrompt
+        },
+        {
+          role: 'user',
+          content: content
+        }
+      ],
+      max_tokens: 1000,
+      temperature: 0.7,
+      stream: false
+    };
+    
+    console.log(`🔧 Request for ${assistant.id}:`, JSON.stringify(requestData, null, 2));
+    
+    const maxRetries = 3;
+    const retryDelay = 1000;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const headers: any = {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        };
+        
+        if (assistant.jwt_token) {
+          headers['Authorization'] = `Bearer ${assistant.jwt_token}`;
+        }
+        
+        const response = await axios.post(
+          `${assistant.api_url}/api/chat/completions`,
+          requestData,
+          {
+            headers,
+            timeout: 30000
+          }
+        );
+        
+        const aiResponse = response.data as any;
+        const assistantResponseContent = aiResponse.choices?.[0]?.message?.content || 'Keine Antwort erhalten.';
+        
+        console.log(`✅ AI Response received (attempt ${attempt}):`, assistantResponseContent.substring(0, 100) + '...');
+        
+        // 🔍 CHECK FOR FUNCTION CALLS in AI response
+        const functionCallMatch = assistantResponseContent.match(/FUNCTION_CALL:\s*([a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)/);
+        
+        if (functionCallMatch) {
+          console.log(`🎯 AI requested function call: ${functionCallMatch[1]}`);
+          
+          try {
+            // Parse function call
+            const [pluginName, functionName] = functionCallMatch[1].split('.');
+            const parametersStr = functionCallMatch[2];
+            
+            // Parse parameters (simple key="value" parsing)
+            const parameters: any = {};
+            const paramMatches = parametersStr.matchAll(/(\w+)=["']([^"']+)["']/g);
+            for (const match of paramMatches) {
+              parameters[match[1]] = match[2];
+            }
+            
+            console.log(`🔧 Executing ${pluginName}.${functionName} with:`, parameters);
+            
+            // Find plugin by name
+            const { getPluginModel } = await import('../models/PluginSQLite');
+            const pluginModel = getPluginModel();
+            const plugin = await pluginModel.findByName(pluginName);
+            
+            if (!plugin) {
+              throw new Error(`Plugin ${pluginName} not found`);
+            }
+            
+            // Execute plugin function
+            const { getPluginExecutor } = await import('../services/pluginExecutor');
+            const pluginExecutor = getPluginExecutor();
+            
+            const pluginExecResult = await pluginExecutor.executeFunction(plugin.id, functionName, parameters, {
+              userId: userId,
+              assistantId: assistant.id,
+              conversationId: id
+            });
+            
+            if (pluginExecResult.success) {
+              // Build proper content with plugin results
+              let resultContent = '';
+              
+              // Check for image URL in multiple possible locations
+              const imageUrl = pluginExecResult.data?.image_url || 
+                              pluginExecResult.data?.data?.image_url ||
+                              (pluginExecResult.data?.images && pluginExecResult.data.images[0]?.url);
+              
+              if (imageUrl) {
+                // Image generation result - Frontend extracts images automatically
+                const meta = pluginExecResult.data?.metadata || pluginExecResult.data?.data?.metadata;
+                if (meta) {
+                  resultContent = `**Details:**\n`;
+                  if (meta.width && meta.height) resultContent += `📏 Größe: ${meta.width}×${meta.height}\n`;
+                  if (meta.seed) resultContent += `🎲 Seed: ${meta.seed}\n`;
+                  if (meta.model) resultContent += `🤖 Model: ${meta.model}\n`;
+                  if (meta.provider) resultContent += `⚡ Provider: ${meta.provider}\n`;
+                } else {
+                  resultContent = `Bild wurde erfolgreich generiert.`;
+                }
+                
+                // Add image URL in markdown format for frontend extraction
+                resultContent += `\n\n![Generated Image](${imageUrl})`;
+              } else if (pluginExecResult.data && (pluginExecResult.data.audio_url || pluginExecResult.data.data?.audio_url)) {
+                // Audio generation result
+                const audioUrl = pluginExecResult.data.audio_url || pluginExecResult.data.data?.audio_url;
+                resultContent = `🎵 **Audio erfolgreich generiert!**\n\n[Audio anhören](${audioUrl})`;
+              } else if (pluginExecResult.data && pluginExecResult.data.success) {
+                // Generic success result
+                resultContent = `✅ **${pluginName} erfolgreich ausgeführt!**\n\n${pluginExecResult.data.message || 'Operation abgeschlossen.'}`;
+              } else {
+                // Fallback
+                resultContent = `✅ **${pluginName}.${functionName} erfolgreich ausgeführt!**`;
+              }
+
+              // Save assistant message with plugin results
+              const assistantMessage = await messageModel.create({
+                conversation_id: id,
+                role: 'assistant',
+                content: resultContent,
+                metadata: {
+                  ai_response: true,
+                  model: requestData.model,
+                  attempt: attempt,
+                  function_call: {
+                    function: functionCallMatch[1],
+                    parameters: parameters,
+                    executed: true
+                  },
+                  plugin_result: pluginExecResult.data
+                }
+              });
+
+              // Return with plugin results
+              return res.json({
+                success: true,
+                data: {
+                  message: {
+                    id: assistantMessage.id,
+                    content: assistantMessage.content,
+                    role: 'assistant',
+                    timestamp: assistantMessage.created_at
+                  },
+                  conversation: {
+                    id: id,
+                    title: conversation.title
+                  },
+                  plugin_execution: {
+                    executed: true,
+                    function_calls: [pluginExecResult.data],
+                    results: pluginExecResult.data ? [pluginExecResult.data] : [],
+                    events: pluginExecResult.events || []
+                  }
+                },
+                timestamp: new Date().toISOString()
+              });
+            }
+          } catch (funcError) {
+            console.error('Function execution error:', funcError);
+            // Continue with normal response if function fails
+          }
+        }
+        
+        // Save assistant message (normal response or failed function call)
+        const assistantMessage = await messageModel.create({
+          conversation_id: id,
+          role: 'assistant',
+          content: assistantResponseContent,
+          metadata: {
+            ai_response: true,
+            model: requestData.model,
+            attempt: attempt
+          }
         });
-      } else if (apiError.response?.status === 404) {
-        return res.status(500).json({
-          success: false,
-          error: { message: 'AI service endpoint not found' },
-          timestamp: new Date().toISOString()
-        });
-      } else if (apiError.response?.status >= 500) {
-        return res.status(502).json({
-          success: false,
-          error: { message: 'AI service temporarily unavailable' },
-          timestamp: new Date().toISOString()
-        });
-      } else {
-        return res.status(500).json({
-          success: false,
-          error: { 
-            message: 'AI service error',
-            details: apiError.response?.data?.detail || apiError.message
+
+        return res.json({
+          success: true,
+          data: {
+            message: {
+              id: assistantMessage.id,
+              content: assistantResponseContent,
+              role: 'assistant',
+              timestamp: assistantMessage.created_at
+            },
+            conversation: {
+              id: id,
+              title: conversation.title
+            }
           },
           timestamp: new Date().toISOString()
         });
+
+      } catch (apiError: any) {
+        console.error(`API Error (attempt ${attempt}):`, apiError.response?.data || apiError.message);
+        
+        if (attempt === maxRetries) {
+          // This is the final attempt
+          throw apiError;
+        } else {
+          console.log(`Retrying in ${retryDelay}ms... (attempt ${attempt + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+        }
       }
     }
 
-  } catch (error) {
+    // This should never be reached due to the throw in the catch block
+    throw new Error('Max retries exceeded');
+
+  } catch (error: any) {
     console.error('Error sending message:', error);
     return res.status(500).json({
       success: false,

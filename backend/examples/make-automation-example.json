@@ -1,0 +1,376 @@
+{
+  "name": "make_automation",
+  "display_name": "Make.com Scenario Automation",
+  "description": "Trigger Make.com scenarios via webhooks for complex automation workflows",
+  "version": "1.0.0",
+  "author": "Skillbox Team",
+  "plugin_type": "automation",
+  "runtime_type": "webhook",
+  "is_active": true,
+  "is_public": true,
+  
+  "config_schema": {
+    "webhook_url": {
+      "type": "string",
+      "required": true,
+      "title": "Make.com Webhook URL",
+      "description": "Your Make.com scenario webhook URL (from Custom Webhook trigger)",
+      "placeholder": "https://hook.eu1.make.com/abc123def456789"
+    },
+    "webhook_key": {
+      "type": "string",
+      "required": false,
+      "secret": true,
+      "title": "Webhook Key",
+      "description": "Optional webhook key for authentication",
+      "placeholder": "your-webhook-key"
+    },
+    "scenario_name": {
+      "type": "string",
+      "required": false,
+      "title": "Scenario Name",
+      "description": "Name of your Make.com scenario for reference",
+      "placeholder": "AI Assistant Automation Flow"
+    },
+    "data_structure": {
+      "type": "enum",
+      "required": false,
+      "default": "json",
+      "title": "Data Structure",
+      "values": ["json", "form_data", "xml"],
+      "description": "How to send data to Make.com"
+    },
+    "response_format": {
+      "type": "enum",
+      "required": false,
+      "default": "json",
+      "title": "Expected Response Format",
+      "values": ["json", "text", "xml", "none"],
+      "description": "Expected response format from Make.com"
+    },
+    "timeout_seconds": {
+      "type": "number",
+      "required": false,
+      "default": 60,
+      "minimum": 5,
+      "maximum": 300,
+      "title": "Timeout (Seconds)",
+      "description": "Request timeout for complex scenarios"
+    },
+    "retry_on_error": {
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "title": "Retry on Error",
+      "description": "Retry failed requests automatically"
+    }
+  },
+  
+  "manifest": {
+    "name": "make_automation",
+    "display_name": "Make.com Scenario Automation",
+    "description": "Trigger Make.com scenarios via webhooks for complex automation workflows",
+    "version": "1.0.0",
+    "author": "Skillbox Team",
+    "plugin_type": "automation",
+    "runtime_type": "webhook",
+    "functions": [
+      {
+        "name": "trigger_scenario",
+        "description": "Trigger a Make.com scenario with custom data payload",
+        "parameters": {
+          "scenario_data": {
+            "type": "object",
+            "description": "Data to send to the Make.com scenario",
+            "required": true,
+            "properties": {
+              "event_type": {
+                "type": "string",
+                "description": "Type of event being triggered"
+              },
+              "payload": {
+                "type": "object",
+                "description": "Main data payload for the scenario"
+              },
+              "metadata": {
+                "type": "object",
+                "description": "Additional metadata for processing"
+              }
+            }
+          },
+          "execution_mode": {
+            "type": "enum",
+            "description": "How to execute the scenario",
+            "required": false,
+            "default": "synchronous",
+            "values": ["synchronous", "asynchronous", "scheduled"]
+          },
+          "priority": {
+            "type": "enum",
+            "description": "Execution priority level",
+            "required": false,
+            "default": "normal",
+            "values": ["low", "normal", "high", "critical"]
+          }
+        }
+      },
+      {
+        "name": "process_ai_result",
+        "description": "Process AI generation results through Make.com workflows",
+        "parameters": {
+          "ai_output": {
+            "type": "object",
+            "description": "AI generation result data",
+            "required": true,
+            "properties": {
+              "content_type": {
+                "type": "enum",
+                "values": ["image", "audio", "text", "video"],
+                "description": "Type of AI-generated content"
+              },
+              "content_url": {
+                "type": "string",
+                "description": "URL to the generated content"
+              },
+              "metadata": {
+                "type": "object",
+                "description": "Generation metadata (prompt, model, etc.)"
+              },
+              "user_info": {
+                "type": "object",
+                "description": "User information for processing"
+              }
+            }
+          },
+          "processing_options": {
+            "type": "object",
+            "description": "How to process the AI result",
+            "required": false,
+            "properties": {
+              "auto_save": {
+                "type": "boolean",
+                "default": true,
+                "description": "Automatically save to cloud storage"
+              },
+              "notify_users": {
+                "type": "boolean",
+                "default": true,
+                "description": "Send notifications to relevant users"
+              },
+              "create_tasks": {
+                "type": "boolean",
+                "default": false,
+                "description": "Create follow-up tasks"
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "sync_data_hub",
+        "description": "Sync data across multiple platforms via Make.com",
+        "parameters": {
+          "sync_config": {
+            "type": "object",
+            "description": "Data synchronization configuration",
+            "required": true,
+            "properties": {
+              "source_platform": {
+                "type": "string",
+                "description": "Source platform for data"
+              },
+              "target_platforms": {
+                "type": "array",
+                "description": "Target platforms to sync to"
+              },
+              "data_mapping": {
+                "type": "object",
+                "description": "How to map data between platforms"
+              }
+            }
+          },
+          "sync_data": {
+            "type": "object",
+            "description": "Actual data to synchronize",
+            "required": true
+          },
+          "sync_mode": {
+            "type": "enum",
+            "description": "Synchronization mode",
+            "required": false,
+            "default": "merge",
+            "values": ["overwrite", "merge", "append", "update_only"]
+          }
+        }
+      },
+      {
+        "name": "create_content_workflow",
+        "description": "Trigger content creation and approval workflow",
+        "parameters": {
+          "content_request": {
+            "type": "object",
+            "description": "Content creation request details",
+            "required": true,
+            "properties": {
+              "content_type": {
+                "type": "enum",
+                "values": ["blog_post", "social_media", "marketing_copy", "documentation"],
+                "description": "Type of content to create"
+              },
+              "brief": {
+                "type": "string",
+                "description": "Content brief or requirements"
+              },
+              "deadline": {
+                "type": "string",
+                "description": "Content deadline (ISO format)"
+              },
+              "assignees": {
+                "type": "array",
+                "description": "Team members assigned to the content"
+              }
+            }
+          },
+          "workflow_settings": {
+            "type": "object",
+            "description": "Workflow configuration",
+            "required": false,
+            "properties": {
+              "approval_required": {
+                "type": "boolean",
+                "default": true,
+                "description": "Requires approval before publishing"
+              },
+              "auto_schedule": {
+                "type": "boolean",
+                "default": false,
+                "description": "Automatically schedule content"
+              },
+              "notify_stakeholders": {
+                "type": "boolean",
+                "default": true,
+                "description": "Notify relevant stakeholders"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "webhook_config": {
+      "method": "POST",
+      "content_type": "application/json",
+      "headers": {
+        "User-Agent": "Skillbox-PluginSystem/1.0",
+        "X-Source": "skillbox-ai"
+      },
+      "expected_status_codes": [200, 201, 202, 204],
+      "response_handling": {
+        "success_indicators": ["success", "status", "result"],
+        "error_indicators": ["error", "message", "details", "exception"],
+        "extract_data_from": ["data", "result", "response"]
+      },
+      "error_handling": {
+        "max_retries": 3,
+        "retry_delay": 2000,
+        "exponential_backoff": true
+      }
+    },
+    "examples": [
+      {
+        "name": "AI Image Processing Workflow",
+        "description": "Process AI-generated image through content workflow",
+        "function": "process_ai_result",
+        "parameters": {
+          "ai_output": {
+            "content_type": "image",
+            "content_url": "https://example.com/generated-image.jpg",
+            "metadata": {
+              "prompt": "Mountain landscape at sunset",
+              "model": "flux-1.1-pro",
+              "resolution": "1024x1024",
+              "style": "photorealistic"
+            },
+            "user_info": {
+              "user_id": "user123",
+              "email": "designer@company.com",
+              "department": "Marketing"
+            }
+          },
+          "processing_options": {
+            "auto_save": true,
+            "notify_users": true,
+            "create_tasks": true
+          }
+        }
+      },
+      {
+        "name": "Multi-Platform Content Sync",
+        "description": "Sync blog post across multiple platforms",
+        "function": "sync_data_hub",
+        "parameters": {
+          "sync_config": {
+            "source_platform": "wordpress",
+            "target_platforms": ["linkedin", "medium", "twitter", "facebook"],
+            "data_mapping": {
+              "title": "post_title",
+              "content": "post_content",
+              "tags": "hashtags",
+              "featured_image": "cover_image"
+            }
+          },
+          "sync_data": {
+            "title": "AI-Generated Content Best Practices",
+            "content": "In this comprehensive guide...",
+            "tags": ["AI", "Content", "Marketing"],
+            "featured_image": "https://example.com/featured.jpg"
+          },
+          "sync_mode": "merge"
+        }
+      },
+      {
+        "name": "Marketing Campaign Creation",
+        "description": "Create and manage marketing campaign workflow",
+        "function": "create_content_workflow",
+        "parameters": {
+          "content_request": {
+            "content_type": "marketing_copy",
+            "brief": "Create social media posts for new AI feature launch",
+            "deadline": "2024-01-20T12:00:00Z",
+            "assignees": ["copywriter@company.com", "designer@company.com"]
+          },
+          "workflow_settings": {
+            "approval_required": true,
+            "auto_schedule": false,
+            "notify_stakeholders": true
+          }
+        }
+      },
+      {
+        "name": "Complex Automation Trigger",
+        "description": "Trigger complex multi-step automation scenario",
+        "function": "trigger_scenario",
+        "parameters": {
+          "scenario_data": {
+            "event_type": "ai_task_completed",
+            "payload": {
+              "task_id": "task_12345",
+              "completion_time": "2024-01-15T14:30:00Z",
+              "results": {
+                "files_generated": 3,
+                "processing_time": 45,
+                "quality_score": 0.95
+              }
+            },
+            "metadata": {
+              "source": "skillbox_ai",
+              "trigger_user": "admin@company.com",
+              "workflow_version": "2.1"
+            }
+          },
+          "execution_mode": "synchronous",
+          "priority": "high"
+        }
+      }
+    ]
+  }
+} 

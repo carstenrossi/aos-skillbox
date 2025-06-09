@@ -23,6 +23,8 @@ import assistantRoutes from './routes/assistants';
 import conversationRoutes from './routes/conversations';
 import adminRoutes from './routes/admin';
 import { toolsRouter } from './routes/tools';
+import pluginRoutes from './routes/plugins';
+import { pluginExecutionRouter } from './routes/pluginExecution';
 
 // Load environment variables
 dotenv.config();
@@ -90,6 +92,8 @@ app.use('/api/assistants', assistantRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/tools', toolsRouter);
+app.use('/api/plugins', pluginRoutes);
+app.use('/api/plugin-execution', pluginExecutionRouter);
 
 // Error handling middleware
 app.use(notFoundHandler);

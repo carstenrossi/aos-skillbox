@@ -1,0 +1,144 @@
+{
+  "name": "flux_image_generator",
+  "display_name": "Flux Image Generator",
+  "description": "Generate high-quality images using the Flux AI model via fal.ai API",
+  "version": "1.0.0",
+  "author": "Skillbox Team",
+  "plugin_type": "image_generation",
+  "runtime_type": "api_call",
+  "manifest": {
+    "name": "flux_image_generator",
+    "display_name": "Flux Image Generator",
+    "version": "1.0.0",
+    "description": "Generate high-quality images using the Flux AI model via fal.ai API",
+    "author": "Skillbox Team",
+    "runtime": "api_call",
+    "functions": [
+      {
+        "name": "image_gen",
+        "description": "Generate images from text descriptions. Use this when the user requests an image based on a scene description, such as a diagram, portrait, comic, meme, or any other visual. Always use this tool for image generation requests.",
+        "parameters": {
+          "prompt": {
+            "type": "string",
+            "required": true,
+            "description": "The text description of the desired image"
+          },
+          "aspect_ratio": {
+            "type": "enum",
+            "required": false,
+            "default": "1:1",
+            "values": ["21:9", "16:9", "4:3", "3:2", "1:1", "2:3", "3:4", "9:16", "9:21"],
+            "description": "The aspect ratio for the generated image"
+          },
+          "num_images": {
+            "type": "number",
+            "required": false,
+            "default": 1,
+            "description": "The number of images to generate (1-4)"
+          },
+          "raw": {
+            "type": "boolean",
+            "required": false,
+            "default": false,
+            "description": "If true, generate less processed, more natural-looking images"
+          }
+        }
+      }
+    ],
+    "config_schema": {
+      "api_key": {
+        "type": "string",
+        "required": true,
+        "secret": true,
+        "description": "The API key for the fal.ai service"
+      },
+      "model_name": {
+        "type": "string",
+        "required": false,
+        "default": "flux-pro/v1.1-ultra",
+        "description": "The name of the model to use for image generation"
+      },
+      "enable_safety_checker": {
+        "type": "boolean",
+        "required": false,
+        "default": true,
+        "description": "If set to true, the safety checker will be enabled"
+      },
+      "safety_tolerance": {
+        "type": "number",
+        "required": false,
+        "default": 2,
+        "min": 1,
+        "max": 5,
+        "description": "The safety tolerance level for the generated image. 1 being the most strict and 5 being the most permissive"
+      },
+      "output_format": {
+        "type": "enum",
+        "required": false,
+        "default": "jpeg",
+        "values": ["jpeg", "png"],
+        "description": "The format of the generated image"
+      },
+      "timeout": {
+        "type": "number",
+        "required": false,
+        "default": 30.0,
+        "description": "Timeout for the HTTP request in seconds"
+      },
+      "max_retries": {
+        "type": "number",
+        "required": false,
+        "default": 3,
+        "description": "Maximum number of retries for the HTTP request"
+      }
+    },
+    "endpoints": {
+      "execute": "https://fal.run/fal-ai/{model_name}",
+      "health": "https://fal.run/health"
+    },
+    "permissions": ["internet_access", "api_calls"],
+    "metadata": {
+      "category": "Image Generation",
+      "tags": ["ai", "image", "flux", "generation"],
+      "documentation_url": "https://fal.ai/models/flux-pro",
+      "cost_model": "per_megapixel",
+      "cost_per_megapixel": 0.05
+    }
+  },
+  "config_schema": {
+    "api_key": {
+      "type": "string",
+      "required": true,
+      "secret": true,
+      "description": "The API key for the fal.ai service"
+    },
+    "model_name": {
+      "type": "string",
+      "required": false,
+      "default": "flux-pro/v1.1-ultra",
+      "description": "The name of the model to use for image generation"
+    },
+    "enable_safety_checker": {
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "If set to true, the safety checker will be enabled"
+    },
+    "safety_tolerance": {
+      "type": "number",
+      "required": false,
+      "default": 2,
+      "min": 1,
+      "max": 5,
+      "description": "The safety tolerance level for the generated image"
+    },
+    "output_format": {
+      "type": "enum",
+      "required": false,
+      "default": "jpeg",
+      "values": ["jpeg", "png"],
+      "description": "The format of the generated image"
+    }
+  },
+  "is_public": true
+} 

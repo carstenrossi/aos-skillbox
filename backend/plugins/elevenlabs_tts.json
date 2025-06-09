@@ -1,0 +1,86 @@
+{
+  "id": "elevenlabs_tts",
+  "name": "elevenlabs_tts",
+  "display_name": "ElevenLabs Text-to-Speech",
+  "description": "Generiere hochqualitative Sprach-Audio aus Text mit ElevenLabs AI Voices",
+  "version": "1.0.0",
+  "author": "Skillbox",
+  "plugin_type": "audio",
+  "runtime_type": "nodejs",
+  "manifest": {
+    "name": "elevenlabs_tts",
+    "display_name": "ElevenLabs Text-to-Speech",
+    "version": "1.0.0",
+    "description": "Generiere hochqualitative Sprach-Audio aus Text mit ElevenLabs AI Voices",
+    "author": "Skillbox",
+    "runtime": "nodejs",
+    "functions": [
+      {
+        "name": "generate_speech",
+        "description": "Konvertiere Text zu natürlich klingender Sprache. Verwende diese Funktion wenn der Benutzer möchte, dass ein Text vorgelesen wird oder als Audio-Datei verfügbar gemacht wird.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "Der Text der in Sprache umgewandelt werden soll",
+            "required": true
+          },
+          "voice_id": {
+            "type": "enum",
+            "description": "Die Stimme die verwendet werden soll",
+            "values": ["Rachel", "Drew", "Clyde", "Paul", "Domi", "Dave", "Fin", "Sarah", "Antoni", "Thomas"],
+            "default": "Rachel",
+            "required": false
+          },
+          "model_id": {
+            "type": "enum",
+            "description": "Das Sprachmodell",
+            "values": ["eleven_monolingual_v1", "eleven_multilingual_v1", "eleven_multilingual_v2"],
+            "default": "eleven_multilingual_v2",
+            "required": false
+          },
+          "voice_stability": {
+            "type": "number",
+            "description": "Stimmen-Stabilität (0.0 bis 1.0)",
+            "default": 0.5,
+            "min": 0.0,
+            "max": 1.0,
+            "required": false
+          },
+          "voice_clarity": {
+            "type": "number",
+            "description": "Stimmen-Klarheit (0.0 bis 1.0)",
+            "default": 0.75,
+            "min": 0.0,
+            "max": 1.0,
+            "required": false
+          }
+        }
+      }
+    ],
+    "code": "async function generate_speech(parameters) {\n  try {\n    console.log('🔊 ElevenLabs: Starting TTS generation with text:', parameters.text.substring(0, 100) + '...');\n    \n    // Parameter validation\n    if (!parameters.text || parameters.text.trim().length === 0) {\n      throw new Error('Text parameter is required and cannot be empty');\n    }\n    \n    if (parameters.text.length > 5000) {\n      throw new Error('Text is too long (max 5000 characters)');\n    }\n    \n    // Voice ID mapping (ElevenLabs pre-made voices)\n    const voiceMapping = {\n      'Rachel': '21m00Tcm4TlvDq8ikWAM',\n      'Drew': '29vD33N1CtxCmqQRPOHJ',\n      'Clyde': '2EiwWnXFnvU5JabPnv8n',\n      'Paul': '5Q0t7uMcjvnagumLfvZi',\n      'Domi': 'AZnzlk1XvdvUeBnXmlld',\n      'Dave': 'CYw3kZ02Hs0563khs1Fj',\n      'Fin': 'D38z5RcWu1voky8WS1ja',\n      'Sarah': 'EXAVITQu4vr4xnSDxMaL',\n      'Antoni': 'ErXwobaYiN019PkySvjV',\n      'Thomas': 'GBv7mTt0atIp3Br8iCZE'\n    };\n    \n    const voiceName = parameters.voice_id || parameters.voice || 'Rachel';\n    const voiceId = voiceMapping[voiceName];\n    \n    if (!voiceId) {\n      throw new Error(`Unknown voice: ${voiceName}`);\n    }\n    \n    console.log('🎙️ ElevenLabs: Using voice:', voiceName, 'ID:', voiceId);\n    \n    // Prepare request data\n    const requestData = {\n      text: parameters.text,\n      model_id: parameters.model_id || 'eleven_multilingual_v2',\n      voice_settings: {\n        stability: parameters.voice_stability || 0.5,\n        similarity_boost: parameters.voice_clarity || 0.75,\n        style: 0.0,\n        use_speaker_boost: true\n      }\n    };\n    \n    console.log('📝 ElevenLabs: Request data:', JSON.stringify(requestData, null, 2));\n    \n    // Make API call to ElevenLabs using sandbox fetch\n    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {\n      method: 'POST',\n      headers: {\n        'Accept': 'audio/mpeg',\n        'Content-Type': 'application/json',\n        'xi-api-key': config.api_key\n      },\n      body: JSON.stringify(requestData)\n    });\n    \n    if (!response.ok) {\n      const errorText = await response.text();\n      console.error('❌ ElevenLabs: API Error:', response.status, errorText);\n      throw new Error(`ElevenLabs API Error: ${response.status} - ${errorText}`);\n    }\n    \n    console.log('✅ ElevenLabs: Audio generation completed, response size:', response.headers.get('content-length'));\n    \n    // Get audio buffer\n    const audioBuffer = await response.buffer();\n    \n    // Convert to base64 data URL\n    const audioBase64 = audioBuffer.toString('base64');\n    const audioDataUrl = `data:audio/mpeg;base64,${audioBase64}`;\n    \n    console.log('🎵 ElevenLabs: Audio converted to data URL, size:', audioDataUrl.length, 'characters');\n    \n    return {\n      success: true,\n      data: {\n        audio_url: audioDataUrl,\n        text: parameters.text,\n        voice: voiceName,\n        model: parameters.model_id || 'eleven_multilingual_v2',\n        provider: 'elevenlabs',\n        format: 'mp3',\n        metadata: {\n          voice_id: voiceId,\n          voice_stability: requestData.voice_settings.stability,\n          voice_clarity: requestData.voice_settings.similarity_boost,\n          text_length: parameters.text.length,\n          audio_size_bytes: audioBuffer.length\n        }\n      },\n      message: `Audio erfolgreich generiert für: \"${parameters.text.substring(0, 50)}${parameters.text.length > 50 ? '...' : ''}\"`\n    };\n    \n  } catch (error) {\n    console.error('❌ ElevenLabs: TTS generation failed:', error);\n    console.error('❌ ElevenLabs: Error details:', {\n      message: error.message,\n      stack: error.stack,\n      name: error.name\n    });\n    \n    return {\n      success: false,\n      error: error.message || 'Unknown error occurred',\n      data: null,\n      message: `TTS Generation fehlgeschlagen: ${error.message}`\n    };\n  }\n}"
+  },
+  "config_schema": {
+    "api_key": {
+      "type": "string",
+      "description": "ElevenLabs API Key",
+      "required": true,
+      "secret": true
+    },
+    "default_voice": {
+      "type": "enum",
+      "description": "Standard-Stimme für TTS",
+      "values": ["Rachel", "Drew", "Clyde", "Paul", "Domi", "Dave", "Fin", "Sarah", "Antoni", "Thomas"],
+      "default": "Rachel"
+    },
+    "max_text_length": {
+      "type": "number",
+      "description": "Maximale Textlänge für TTS",
+      "default": 5000,
+      "min": 100,
+      "max": 10000
+    }
+  },
+  "dependencies": [],
+  "is_active": true,
+  "is_public": true
+} 

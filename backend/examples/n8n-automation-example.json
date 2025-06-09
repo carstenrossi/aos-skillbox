@@ -1,0 +1,246 @@
+{
+  "name": "n8n_automation",
+  "display_name": "N8N Workflow Automation",
+  "description": "Trigger N8N workflows via webhooks for automation tasks",
+  "version": "1.0.0",
+  "author": "Skillbox Team",
+  "plugin_type": "automation",
+  "runtime_type": "webhook",
+  "is_active": true,
+  "is_public": true,
+  
+  "config_schema": {
+    "webhook_url": {
+      "type": "string",
+      "required": true,
+      "title": "N8N Webhook URL",
+      "description": "The webhook URL from your N8N workflow (e.g. https://your-n8n.com/webhook/abc123)",
+      "placeholder": "https://your-n8n.com/webhook/abc123"
+    },
+    "authentication_method": {
+      "type": "enum",
+      "required": false,
+      "default": "none",
+      "title": "Authentication Method",
+      "values": ["none", "header_auth", "basic_auth", "query_auth"],
+      "description": "How to authenticate with the webhook"
+    },
+    "auth_header_name": {
+      "type": "string",
+      "required": false,
+      "title": "Auth Header Name",
+      "description": "Header name for authentication (e.g. 'Authorization', 'X-API-Key')",
+      "placeholder": "X-API-Key"
+    },
+    "auth_header_value": {
+      "type": "string",
+      "required": false,
+      "secret": true,
+      "title": "Auth Header Value",
+      "description": "Header value for authentication",
+      "placeholder": "your-secret-key"
+    },
+    "timeout_seconds": {
+      "type": "number",
+      "required": false,
+      "default": 30,
+      "minimum": 5,
+      "maximum": 300,
+      "title": "Timeout (Seconds)",
+      "description": "Request timeout in seconds"
+    },
+    "retry_attempts": {
+      "type": "number",
+      "required": false,
+      "default": 3,
+      "minimum": 1,
+      "maximum": 5,
+      "title": "Retry Attempts",
+      "description": "Number of retry attempts on failure"
+    },
+    "workflow_description": {
+      "type": "string",
+      "required": false,
+      "title": "Workflow Description",
+      "description": "Describe what this N8N workflow does",
+      "placeholder": "This workflow sends email notifications and creates Slack messages"
+    }
+  },
+  
+  "manifest": {
+    "name": "n8n_automation",
+    "display_name": "N8N Workflow Automation",
+    "description": "Trigger N8N workflows via webhooks for automation tasks",
+    "version": "1.0.0",
+    "author": "Skillbox Team",
+    "plugin_type": "automation",
+    "runtime_type": "webhook",
+    "functions": [
+      {
+        "name": "trigger_workflow",
+        "description": "Trigger an N8N workflow with custom data",
+        "parameters": {
+          "data": {
+            "type": "object",
+            "description": "Data to send to the N8N workflow",
+            "required": true,
+            "properties": {
+              "message": {
+                "type": "string",
+                "description": "Message or content to process"
+              },
+              "user_id": {
+                "type": "string", 
+                "description": "User ID for the automation"
+              },
+              "action": {
+                "type": "string",
+                "description": "Action to perform in the workflow"
+              },
+              "metadata": {
+                "type": "object",
+                "description": "Additional metadata for the workflow"
+              }
+            }
+          },
+          "workflow_params": {
+            "type": "object",
+            "description": "Additional parameters specific to this workflow execution",
+            "required": false
+          },
+          "async": {
+            "type": "boolean",
+            "description": "Execute workflow asynchronously",
+            "required": false,
+            "default": false
+          }
+        }
+      },
+      {
+        "name": "send_notification",
+        "description": "Send notification via N8N workflow (email, Slack, etc.)",
+        "parameters": {
+          "recipient": {
+            "type": "string",
+            "description": "Recipient (email, Slack channel, etc.)",
+            "required": true
+          },
+          "subject": {
+            "type": "string",
+            "description": "Subject or title of the notification",
+            "required": true
+          },
+          "message": {
+            "type": "string",
+            "description": "Notification message content",
+            "required": true
+          },
+          "priority": {
+            "type": "enum",
+            "description": "Notification priority level",
+            "required": false,
+            "default": "normal",
+            "values": ["low", "normal", "high", "urgent"]
+          },
+          "notification_type": {
+            "type": "enum",
+            "description": "Type of notification to send",
+            "required": false,
+            "default": "email",
+            "values": ["email", "slack", "teams", "discord", "sms", "webhook"]
+          }
+        }
+      },
+      {
+        "name": "create_task",
+        "description": "Create task in project management tools via N8N",
+        "parameters": {
+          "title": {
+            "type": "string",
+            "description": "Task title",
+            "required": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Task description",
+            "required": false
+          },
+          "assignee": {
+            "type": "string",
+            "description": "Person to assign the task to",
+            "required": false
+          },
+          "project": {
+            "type": "string", 
+            "description": "Project or board to add task to",
+            "required": false
+          },
+          "priority": {
+            "type": "enum",
+            "description": "Task priority",
+            "required": false,
+            "default": "medium",
+            "values": ["low", "medium", "high"]
+          },
+          "due_date": {
+            "type": "string",
+            "description": "Due date (YYYY-MM-DD format)",
+            "required": false
+          },
+          "labels": {
+            "type": "array",
+            "description": "Task labels or tags",
+            "required": false
+          }
+        }
+      }
+    ],
+    "webhook_config": {
+      "method": "POST",
+      "content_type": "application/json",
+      "expected_status_codes": [200, 201, 202],
+      "response_handling": {
+        "success_indicators": ["status", "success", "ok"],
+        "error_indicators": ["error", "message", "details"]
+      }
+    },
+    "examples": [
+      {
+        "name": "Email Notification",
+        "description": "Send email notification via N8N workflow",
+        "function": "send_notification",
+        "parameters": {
+          "recipient": "user@example.com",
+          "subject": "Task Completed",
+          "message": "Your AI image generation is complete!",
+          "notification_type": "email",
+          "priority": "normal"
+        }
+      },
+      {
+        "name": "Slack Message",
+        "description": "Send Slack message via N8N workflow",
+        "function": "send_notification", 
+        "parameters": {
+          "recipient": "#general",
+          "subject": "AI Assistant Update",
+          "message": "New plugin has been activated!",
+          "notification_type": "slack",
+          "priority": "normal"
+        }
+      },
+      {
+        "name": "Create Trello Card",
+        "description": "Create task in Trello via N8N",
+        "function": "create_task",
+        "parameters": {
+          "title": "Review AI Generated Content",
+          "description": "Review and approve the generated images",
+          "project": "Content Review Board",
+          "priority": "medium",
+          "labels": ["ai-generated", "review-needed"]
+        }
+      }
+    ]
+  }
+} 

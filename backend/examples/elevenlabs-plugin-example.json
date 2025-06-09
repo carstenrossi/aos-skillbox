@@ -1,0 +1,112 @@
+{
+  "name": "elevenlabs_tts",
+  "display_name": "ElevenLabs Text-to-Speech",
+  "description": "Convert text to speech using ElevenLabs AI voices",
+  "version": "1.0.0",
+  "author": "Skillbox Team",
+  "plugin_type": "audio_generation",
+  "runtime_type": "api_call",
+  "config_schema": {
+    "api_key": {
+      "type": "string",
+      "required": true,
+      "secret": true,
+      "title": "ElevenLabs API Key",
+      "description": "Your ElevenLabs API key from elevenlabs.io"
+    },
+    "voice_id": {
+      "type": "enum",
+      "required": false,
+      "default": "21m00Tcm4TlvDq8ikWAM",
+      "title": "Voice",
+      "values": [
+        "21m00Tcm4TlvDq8ikWAM",
+        "AZnzlk1XvdvUeBnXmlld",
+        "EXAVITQu4vr4xnSDxMaL",
+        "VR6AewLTigWG4xSOukaG",
+        "pNInz6obpgDQGcFmaJgB"
+      ],
+      "description": "The voice to use for text-to-speech conversion"
+    },
+    "model_id": {
+      "type": "enum",
+      "required": false,
+      "default": "eleven_turbo_v2",
+      "title": "TTS Model",
+      "values": [
+        "eleven_turbo_v2",
+        "eleven_multilingual_v2",
+        "eleven_monolingual_v1"
+      ],
+      "description": "The TTS model to use for voice synthesis"
+    },
+    "stability": {
+      "type": "number",
+      "required": false,
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "title": "Voice Stability",
+      "description": "Voice stability - lower values allow for more expressive speech"
+    },
+    "similarity_boost": {
+      "type": "number",
+      "required": false,
+      "default": 0.8,
+      "min": 0.0,
+      "max": 1.0,
+      "title": "Similarity Boost",
+      "description": "Similarity boost - higher values make the voice more similar to the original"
+    },
+    "output_format": {
+      "type": "enum",
+      "required": false,
+      "default": "mp3_44100_128",
+      "title": "Audio Format",
+      "values": [
+        "mp3_44100_128",
+        "mp3_44100_192",
+        "pcm_16000",
+        "pcm_22050",
+        "pcm_44100"
+      ],
+      "description": "The output audio format and quality"
+    },
+    "optimize_streaming_latency": {
+      "type": "number",
+      "required": false,
+      "default": 0,
+      "min": 0,
+      "max": 4,
+      "title": "Streaming Optimization",
+      "description": "Optimize for streaming latency (0-4, higher values = lower latency)"
+    }
+  },
+  "manifest": {
+    "name": "elevenlabs_tts",
+    "display_name": "ElevenLabs Text-to-Speech",
+    "version": "1.0.0",
+    "description": "Convert text to speech using ElevenLabs AI voices",
+    "author": "Skillbox Team",
+    "runtime": "api_call",
+    "functions": [
+      {
+        "name": "text_to_speech",
+        "description": "Convert text to speech using high-quality AI voices. Use this when the user requests audio generation from text.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "required": true,
+            "description": "The text to convert to speech"
+          },
+          "voice_settings": {
+            "type": "object",
+            "required": false,
+            "description": "Voice settings to override defaults"
+          }
+        }
+      }
+    ]
+  },
+  "is_public": true
+} 

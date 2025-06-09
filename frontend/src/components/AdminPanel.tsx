@@ -16,9 +16,24 @@ import {
   Plus,
   Save,
   X,
-  Wrench
+  Wrench,
+  Puzzle,
+  Code,
+  Upload,
+  Download,
+  Eye,
+  Power,
+  Settings2,
+  Image,
+  Video,
+  Music,
+  Zap
 } from 'lucide-react';
 import { ApiService } from '../services/api';
+import { Plugin, PluginConfig, AssistantPlugin, PluginExecution } from '../types';
+import { PluginModal } from './PluginModal';
+import { PluginConfigModal } from './PluginConfigModal';
+import { AssistantPluginManager } from './AssistantPluginManager';
 
 interface User {
   id: string;
@@ -191,6 +206,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onAssistantChange, onClo
   const [users, setUsers] = useState<User[]>([]);
   const [assistants, setAssistants] = useState<Assistant[]>([]);
   const [tools, setTools] = useState<Tool[]>([]);
+  const [plugins, setPlugins] = useState<Plugin[]>([]);
+  const [pluginExecutions, setPluginExecutions] = useState<PluginExecution[]>([]);
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAssistantModal, setShowAssistantModal] = useState(false);
@@ -198,6 +215,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onAssistantChange, onClo
   const [showUserModal, setShowUserModal] = useState(false);
   const [showToolModal, setShowToolModal] = useState(false);
   const [editingTool, setEditingTool] = useState<Tool | null>(null);
+  const [showPluginModal, setShowPluginModal] = useState(false);
+  const [editingPlugin, setEditingPlugin] = useState<Plugin | null>(null);
+  const [showPluginConfigModal, setShowPluginConfigModal] = useState(false);
+  const [selectedPluginForConfig, setSelectedPluginForConfig] = useState<Plugin | null>(null);
+  const [showAssistantPluginModal, setShowAssistantPluginModal] = useState(false);
+  const [selectedAssistant, setSelectedAssistant] = useState<Assistant | null>(null);
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
@@ -225,6 +248,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onAssistantChange, onClo
           }
         } catch (toolsError) {
           console.warn('Admin: Error loading tools:', toolsError);
+        }
+
+        // Lade Plugin-Daten vom Backend
+        try {
+          const pluginsResponse = await ApiService.getPlugins();
+          if (pluginsResponse.success && Array.isArray(pluginsResponse.data)) {
+            setPlugins(pluginsResponse.data);
+            console.log('🔧 Admin: Loaded plugins from backend:', pluginsResponse.data.length);
+          } else {
+            console.warn('Admin: Invalid response format from backend:', pluginsResponse);
+          }
+        } catch (pluginError) {
+          console.warn('Admin: Error loading plugins:', pluginError);
+        }
+
+        // Lade Plugin-Execution-Logs
+        try {
+          const executionsResponse = await ApiService.getPluginExecutions();
+          if (executionsResponse.success && Array.isArray(executionsResponse.data)) {
+            setPluginExecutions(executionsResponse.data);
+            console.log('🔧 Admin: Loaded plugin executions from backend:', executionsResponse.data.length);
+          }
+        } catch (executionError) {
+          console.warn('Admin: Error loading plugin executions:', executionError);
         }
 
         // Lade echte Benutzer-Daten vom Backend
@@ -504,6 +551,116 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onAssistantChange, onClo
     }
   };
 
+  // Plugin Management Handlers
+  const handleCreatePlugin = async (pluginData: Partial<Plugin>) => {
+    try {
+      const response = await ApiService.createPlugin(pluginData);
+      if (response.success && response.data) {
+        setPlugins(prev => [...prev, response.data!]);
+        console.log('✅ Plugin created successfully');
+      } else {
+        alert('Fehler beim Erstellen des Plugins. Bitte versuchen Sie es erneut.');
+      }
+    } catch (error) {
+      console.error('Error creating plugin:', error);
+      alert('Fehler beim Erstellen des Plugins. Bitte versuchen Sie es erneut.');
+    }
+  };
+
+  const handleUpdatePlugin = async (pluginData: Partial<Plugin>) => {
+    if (!editingPlugin) return;
+    
+    try {
+      const response = await ApiService.updatePlugin(editingPlugin.id, pluginData);
+      if (response.success && response.data) {
+        setPlugins(prev => prev.map(p => 
+          p.id === editingPlugin.id ? response.data! : p
+        ));
+        console.log('✅ Plugin updated successfully');
+      } else {
+        alert('Fehler beim Aktualisieren des Plugins. Bitte versuchen Sie es erneut.');
+      }
+    } catch (error) {
+      console.error('Error updating plugin:', error);
+      alert('Fehler beim Aktualisieren des Plugins. Bitte versuchen Sie es erneut.');
+    }
+  };
+
+  const handleDeletePlugin = async (pluginId: string) => {
+    if (window.confirm('Sind Sie sicher, dass Sie dieses Plugin löschen möchten?')) {
+      try {
+        await ApiService.deletePlugin(pluginId);
+        setPlugins(prev => prev.filter(p => p.id !== pluginId));
+        console.log('✅ Plugin deleted successfully');
+      } catch (error) {
+        console.error('Error deleting plugin:', error);
+        alert('Fehler beim Löschen des Plugins. Bitte versuchen Sie es erneut.');
+      }
+    }
+  };
+
+  const togglePluginStatus = async (pluginId: string) => {
+    try {
+      const currentPlugin = plugins.find(p => p.id === pluginId);
+      if (!currentPlugin) return;
+
+      const response = await ApiService.updatePlugin(pluginId, {
+        is_active: !currentPlugin.is_active
+      });
+
+      if (response.success && response.data) {
+        setPlugins(prev => prev.map(plugin => 
+          plugin.id === pluginId ? response.data! : plugin
+        ));
+        console.log(`✅ Plugin ${currentPlugin.display_name} status changed to: ${response.data.is_active}`);
+      } else {
+        alert('Fehler beim Aktualisieren des Plugin-Status. Bitte versuchen Sie es erneut.');
+      }
+    } catch (error) {
+      console.error('Error updating plugin status:', error);
+      alert('Fehler beim Aktualisieren des Plugin-Status. Bitte versuchen Sie es erneut.');
+    }
+  };
+
+  const handleEditPlugin = (plugin: Plugin) => {
+    setEditingPlugin(plugin);
+    setShowPluginModal(true);
+  };
+
+  const handleSavePlugin = (pluginData: Partial<Plugin>) => {
+    if (editingPlugin) {
+      handleUpdatePlugin(pluginData);
+    } else {
+      handleCreatePlugin(pluginData);
+    }
+  };
+
+  const handleConfigurePlugin = (plugin: Plugin) => {
+    setSelectedPluginForConfig(plugin);
+    setShowPluginConfigModal(true);
+  };
+
+  const getPluginTypeIcon = (type: string) => {
+    switch (type) {
+      case 'image_generation': return <Image className="w-4 h-4" />;
+      case 'video_generation': return <Video className="w-4 h-4" />;
+      case 'audio_generation': return <Music className="w-4 h-4" />;
+      case 'automation': return <Zap className="w-4 h-4" />;
+      default: return <Code className="w-4 h-4" />;
+    }
+  };
+
+  const getPluginTypeBadge = (type: string) => {
+    const colors = {
+      image_generation: 'bg-blue-100 text-blue-800',
+      video_generation: 'bg-purple-100 text-purple-800',
+      audio_generation: 'bg-green-100 text-green-800',
+      automation: 'bg-yellow-100 text-yellow-800',
+      utility: 'bg-gray-100 text-gray-800'
+    };
+    return colors[type as keyof typeof colors] || colors.utility;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -581,6 +738,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onAssistantChange, onClo
           {[
             { id: 'users', label: 'Benutzerverwaltung', icon: Users },
             { id: 'assistants', label: 'Assistenten', icon: Bot },
+            { id: 'assistant-plugins', label: 'Assistant-Plugins', icon: Settings2 },
+            { id: 'plugins', label: 'Plugins', icon: Puzzle },
             { id: 'tools', label: 'Tools', icon: Wrench },
             { id: 'analytics', label: 'Analytics', icon: BarChart3 },
             { id: 'system', label: 'System Status', icon: Server },
@@ -789,6 +948,239 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onAssistantChange, onClo
               </table>
             </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'assistant-plugins' && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-semibold text-gray-700">Assistant-Plugin-Management</h3>
+            <p className="text-sm text-gray-500">Verwalten Sie Plugin-Zuweisungen für Ihre Assistenten</p>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div className="p-6">
+              <h4 className="text-lg font-medium text-gray-900 mb-4">Assistenten auswählen</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {assistants.map((assistant) => (
+                  <div
+                    key={assistant.id}
+                    className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 cursor-pointer transition-colors"
+                    onClick={() => {
+                      setSelectedAssistant(assistant);
+                      setShowAssistantPluginModal(true);
+                    }}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <Bot className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h5 className="font-medium text-gray-900">{assistant.display_name}</h5>
+                        <p className="text-sm text-gray-500">{assistant.description}</p>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-2 ${
+                          assistant.is_active
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {assistant.is_active ? 'Aktiv' : 'Inaktiv'}
+                        </span>
+                      </div>
+                      <Settings2 className="w-4 h-4 text-gray-400" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {assistants.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  <Bot size={48} className="mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium">Keine Assistenten vorhanden</p>
+                  <p className="text-sm">Erstellen Sie zuerst Assistenten, um Plugins zu verwalten.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'plugins' && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-semibold text-gray-700">Plugin-Verwaltung</h3>
+            <button
+              onClick={() => { setEditingPlugin(null); setShowPluginModal(true); }}
+              className="text-white font-medium py-2 px-4 rounded-lg flex items-center shadow-sm transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              style={{ backgroundColor: '#84dcc6' }}
+            >
+              <Plus size={18} className="mr-2" />
+              Neues Plugin
+            </button>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Plugin</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Typ</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Runtime</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Version</th>
+                    <th className="text-right py-3 px-4 font-medium text-gray-900">Aktionen</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {plugins.map((plugin) => (
+                    <tr key={plugin.id} className="hover:bg-gray-50">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-gray-100 rounded-lg">
+                            {getPluginTypeIcon(plugin.plugin_type)}
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">{plugin.display_name}</div>
+                            <div className="text-sm text-gray-500">{plugin.description}</div>
+                            <div className="text-xs text-gray-400 mt-1">von {plugin.author}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getPluginTypeBadge(plugin.plugin_type)}`}>
+                          {getPluginTypeIcon(plugin.plugin_type)}
+                          {plugin.plugin_type.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                          {plugin.runtime_type}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <button
+                          onClick={() => togglePluginStatus(plugin.id)}
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                            plugin.is_active
+                              ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                              : 'bg-red-100 text-red-800 hover:bg-red-200'
+                          } transition-colors`}
+                        >
+                          {plugin.is_active ? (
+                            <>
+                              <CheckCircle className="w-3 h-3" />
+                              Aktiv
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="w-3 h-3" />
+                              Inaktiv
+                            </>
+                          )}
+                        </button>
+                      </td>
+                      <td className="py-3 px-4 text-sm text-gray-600">
+                        v{plugin.version}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleConfigurePlugin(plugin)}
+                            className="p-1 text-gray-600 hover:text-blue-600 transition-colors"
+                            title="Konfigurieren"
+                          >
+                            <Settings2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleEditPlugin(plugin)}
+                            className="p-1 text-gray-600 hover:text-indigo-600 transition-colors"
+                            title="Bearbeiten"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeletePlugin(plugin.id)}
+                            className="p-1 text-gray-600 hover:text-red-600 transition-colors"
+                            title="Löschen"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {plugins.length === 0 && (
+              <div className="text-center py-12 text-gray-500">
+                <Puzzle size={48} className="mx-auto mb-4 text-gray-300" />
+                <p className="text-lg font-medium">Keine Plugins vorhanden</p>
+                <p className="text-sm">Fügen Sie Plugins hinzu, um die Funktionalität Ihrer Assistenten zu erweitern.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Plugin Execution Logs */}
+          {pluginExecutions.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+              <div className="p-6 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">Plugin-Ausführungen (Letzte 50)</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Plugin
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Funktion
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Dauer
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Zeitpunkt
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {pluginExecutions.slice(0, 50).map((execution) => (
+                      <tr key={execution.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {plugins.find(p => p.id === execution.plugin_id)?.display_name || execution.plugin_id}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {execution.function_name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            execution.status === 'completed' ? 'bg-green-100 text-green-800' :
+                            execution.status === 'failed' ? 'bg-red-100 text-red-800' :
+                            execution.status === 'running' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {execution.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {execution.execution_time_ms ? `${execution.execution_time_ms}ms` : '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(execution.created_at).toLocaleString('de-DE')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1013,6 +1405,76 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onAssistantChange, onClo
           onClose={() => {
             setEditingTool(null);
             setShowToolModal(false);
+          }}
+        />
+      )}
+
+      {/* Plugin Modal */}
+      {showPluginModal && (
+        <PluginModal
+          plugin={editingPlugin}
+          isEditing={!!editingPlugin}
+          onSave={handleSavePlugin}
+          onClose={() => {
+            setEditingPlugin(null);
+            setShowPluginModal(false);
+          }}
+        />
+      )}
+
+      {/* Plugin Configuration Modal */}
+      {showPluginConfigModal && (
+        <PluginConfigModal
+          plugin={selectedPluginForConfig}
+          onSave={() => {
+            setShowPluginConfigModal(false);
+            setSelectedPluginForConfig(null);
+          }}
+          onClose={() => {
+            setShowPluginConfigModal(false);
+            setSelectedPluginForConfig(null);
+          }}
+        />
+      )}
+
+      {/* Plugin Modal */}
+      {showPluginModal && (
+        <PluginModal
+          plugin={editingPlugin}
+          isEditing={!!editingPlugin}
+          onSave={handleSavePlugin}
+          onClose={() => {
+            setEditingPlugin(null);
+            setShowPluginModal(false);
+          }}
+        />
+      )}
+
+      {/* Plugin Configuration Modal */}
+      {showPluginConfigModal && (
+        <PluginConfigModal
+          plugin={selectedPluginForConfig}
+          onSave={() => {
+            setShowPluginConfigModal(false);
+            setSelectedPluginForConfig(null);
+          }}
+          onClose={() => {
+            setShowPluginConfigModal(false);
+            setSelectedPluginForConfig(null);
+          }}
+        />
+      )}
+
+      {/* Assistant Plugin Management Modal */}
+      {showAssistantPluginModal && selectedAssistant && (
+        <AssistantPluginManager
+          assistant={{
+            ...selectedAssistant,
+            capabilities: [] // Add empty capabilities for compatibility
+          }}
+          onClose={() => {
+            setShowAssistantPluginModal(false);
+            setSelectedAssistant(null);
           }}
         />
       )}
@@ -1702,4 +2164,4 @@ const ToolModal: React.FC<ToolModalProps> = ({
       </div>
     </div>
   );
-}; 
+};

@@ -97,6 +97,7 @@ docker buildx imagetools inspect ghcr.io/carstenrossi/skillbox-frontend:latest-p
 ### ✅ **Funktionell**
 - 🤖 **Assistants Management** - Erstellen, Bearbeiten, Löschen
 - 🛠️ **Tools Management** - API-Tools für Assistants
+- 🔌 **Plugin System** - Erweiterbare Function Calling (NEU!)
 - 👥 **User Management** - Rollen-basierte Zugriffskonrolle
 - 💬 **Chat Interface** - Echtzeit-Kommunikation mit AI
 - 🔐 **Authentication** - JWT-basierte Sicherheit
@@ -115,6 +116,14 @@ docker buildx imagetools inspect ghcr.io/carstenrossi/skillbox-frontend:latest-p
 - Environment-spezifische Konfiguration
 - Health Checks & Monitoring
 - Backup & Recovery
+
+### 🔌 **Plugin System (NEU!)**
+- **Function Calling** - Erweiterte AI-Funktionen
+- **Bildgenerierung** - Flux, DALL-E, Midjourney Integration
+- **Audio/Video** - ElevenLabs, RunwayML Support
+- **Automatisierung** - n8n, Zapier Workflows
+- **Sichere Architektur** - Isolierte Plugin-Ausführung
+- **Plugin Store** - Marketplace für Erweiterungen (geplant)
 
 ## 🛠️ **Installation & Setup**
 
@@ -170,12 +179,15 @@ docker-compose -f docker-compose.dev.yml up -d
 skillbox/
 ├── 📋 DEPLOYMENT.md              # Vollständige Workflow-Docs
 ├── 🚀 WORKFLOW_REFERENCE.md      # Quick Reference
+├── 🔌 PLUGIN_SYSTEM.md           # Plugin-System Dokumentation (NEU!)
 ├── 🛠️ scripts/build-smart.sh     # Build Automation
 ├── 🐳 docker-compose.*.yml       # Docker Configurations
 ├── 🔧 backend/                   # Node.js Backend
 │   ├── src/routes/              # API Routes
 │   ├── src/middleware/          # Authentication & Validation
-│   └── src/services/            # Business Logic
+│   ├── src/models/              # Plugin Models (NEU!)
+│   ├── src/services/            # Business Logic
+│   └── examples/                # Plugin-Beispiele (NEU!)
 ├── 🎨 frontend/                  # React Frontend
 │   ├── src/components/          # UI Components
 │   ├── src/services/            # API Communication
@@ -200,6 +212,8 @@ Alle APIs verwenden einheitliches Response Format:
 - `GET /api/assistants` - Liste aller Assistants
 - `POST /api/assistants` - Neuen Assistant erstellen
 - `GET /api/tools` - Liste aller Tools
+- `GET /api/plugins` - Liste aller Plugins (NEU!)
+- `POST /api/plugins` - Plugin erstellen (NEU!)
 - `POST /api/conversations/:id/messages` - Chat Message senden
 - `POST /api/admin/users` - User erstellen (Admin)
 

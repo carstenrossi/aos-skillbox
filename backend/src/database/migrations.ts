@@ -220,6 +220,172 @@ export const migrations: Migration[] = [
       DROP INDEX IF EXISTS idx_tools_sort_order;
       DROP TABLE IF EXISTS tools;
     `
+  },
+  {
+    version: 9,
+    name: 'create_plugins_table',
+    up: `
+      CREATE TABLE IF NOT EXISTS plugins (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        display_name TEXT NOT NULL,
+        description TEXT,
+        version TEXT NOT NULL DEFAULT '1.0.0',
+        author TEXT,
+        plugin_type TEXT NOT NULL CHECK (plugin_type IN ('image_generation', 'audio_generation', 'video_generation', 'automation', 'api_tool', 'custom')) DEFAULT 'custom',
+        runtime_type TEXT NOT NULL CHECK (runtime_type IN ('nodejs', 'python', 'api_call', 'webhook')) DEFAULT 'api_call',
+        config_schema TEXT, -- JSON string for configuration schema (like Valves)
+        manifest TEXT NOT NULL, -- JSON string for plugin manifest
+        is_active BOOLEAN DEFAULT 1,
+        is_public BOOLEAN DEFAULT 0, -- Can be used by all users
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_by TEXT,
+        updated_by TEXT
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_plugins_name ON plugins(name);
+      CREATE INDEX IF NOT EXISTS idx_plugins_type ON plugins(plugin_type);
+      CREATE INDEX IF NOT EXISTS idx_plugins_runtime ON plugins(runtime_type);
+      CREATE INDEX IF NOT EXISTS idx_plugins_active ON plugins(is_active);
+      CREATE INDEX IF NOT EXISTS idx_plugins_public ON plugins(is_public);
+      
+      CREATE TRIGGER IF NOT EXISTS plugins_updated_at 
+        AFTER UPDATE ON plugins
+        FOR EACH ROW
+      BEGIN
+        UPDATE plugins SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+      END;
+    `,
+    down: `
+      DROP TRIGGER IF EXISTS plugins_updated_at;
+      DROP INDEX IF EXISTS idx_plugins_public;
+      DROP INDEX IF EXISTS idx_plugins_active;
+      DROP INDEX IF EXISTS idx_plugins_runtime;
+      DROP INDEX IF EXISTS idx_plugins_type;
+      DROP INDEX IF EXISTS idx_plugins_name;
+      DROP TABLE IF EXISTS plugins;
+    `
+  },
+  {
+    version: 10,
+    name: 'create_plugin_configs_table',
+    up: `
+      CREATE TABLE IF NOT EXISTS plugin_configs (
+        id TEXT PRIMARY KEY,
+        plugin_id TEXT NOT NULL,
+        user_id TEXT, -- NULL = global/system config, specific user_id = user-specific config
+        config_data TEXT NOT NULL, -- JSON string for configuration values
+        is_active BOOLEAN DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_by TEXT,
+        updated_by TEXT,
+        FOREIGN KEY (plugin_id) REFERENCES plugins(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE(plugin_id, user_id) -- Only one config per plugin per user (or global)
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_plugin_configs_plugin_id ON plugin_configs(plugin_id);
+      CREATE INDEX IF NOT EXISTS idx_plugin_configs_user_id ON plugin_configs(user_id);
+      CREATE INDEX IF NOT EXISTS idx_plugin_configs_active ON plugin_configs(is_active);
+      
+      CREATE TRIGGER IF NOT EXISTS plugin_configs_updated_at 
+        AFTER UPDATE ON plugin_configs
+        FOR EACH ROW
+      BEGIN
+        UPDATE plugin_configs SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+      END;
+    `,
+    down: `
+      DROP TRIGGER IF EXISTS plugin_configs_updated_at;
+      DROP INDEX IF EXISTS idx_plugin_configs_active;
+      DROP INDEX IF EXISTS idx_plugin_configs_user_id;
+      DROP INDEX IF EXISTS idx_plugin_configs_plugin_id;
+      DROP TABLE IF EXISTS plugin_configs;
+    `
+  },
+  {
+    version: 11,
+    name: 'create_assistant_plugins_table',
+    up: `
+      CREATE TABLE IF NOT EXISTS assistant_plugins (
+        id TEXT PRIMARY KEY,
+        assistant_id TEXT NOT NULL,
+        plugin_id TEXT NOT NULL,
+        is_enabled BOOLEAN DEFAULT 1,
+        sort_order INTEGER DEFAULT 0,
+        config_override TEXT, -- JSON string for assistant-specific plugin config overrides
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_by TEXT,
+        updated_by TEXT,
+        FOREIGN KEY (assistant_id) REFERENCES assistants(id) ON DELETE CASCADE,
+        FOREIGN KEY (plugin_id) REFERENCES plugins(id) ON DELETE CASCADE,
+        UNIQUE(assistant_id, plugin_id) -- Each plugin can only be assigned once per assistant
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_assistant_plugins_assistant_id ON assistant_plugins(assistant_id);
+      CREATE INDEX IF NOT EXISTS idx_assistant_plugins_plugin_id ON assistant_plugins(plugin_id);
+      CREATE INDEX IF NOT EXISTS idx_assistant_plugins_enabled ON assistant_plugins(is_enabled);
+      CREATE INDEX IF NOT EXISTS idx_assistant_plugins_sort_order ON assistant_plugins(sort_order);
+      
+      CREATE TRIGGER IF NOT EXISTS assistant_plugins_updated_at 
+        AFTER UPDATE ON assistant_plugins
+        FOR EACH ROW
+      BEGIN
+        UPDATE assistant_plugins SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+      END;
+    `,
+    down: `
+      DROP TRIGGER IF EXISTS assistant_plugins_updated_at;
+      DROP INDEX IF EXISTS idx_assistant_plugins_sort_order;
+      DROP INDEX IF EXISTS idx_assistant_plugins_enabled;
+      DROP INDEX IF EXISTS idx_assistant_plugins_plugin_id;
+      DROP INDEX IF EXISTS idx_assistant_plugins_assistant_id;
+      DROP TABLE IF EXISTS assistant_plugins;
+    `
+  },
+  {
+    version: 12,
+    name: 'create_plugin_executions_table',
+    up: `
+      CREATE TABLE IF NOT EXISTS plugin_executions (
+        id TEXT PRIMARY KEY,
+        plugin_id TEXT NOT NULL,
+        assistant_id TEXT,
+        conversation_id TEXT,
+        user_id TEXT NOT NULL,
+        function_name TEXT NOT NULL,
+        input_parameters TEXT, -- JSON string of input parameters
+        output_result TEXT, -- JSON string of execution result
+        status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled')) DEFAULT 'pending',
+        error_message TEXT,
+        execution_time_ms INTEGER,
+        cost_cents INTEGER, -- Cost in cents for billing
+        started_at DATETIME,
+        completed_at DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (plugin_id) REFERENCES plugins(id) ON DELETE CASCADE,
+        FOREIGN KEY (assistant_id) REFERENCES assistants(id) ON DELETE SET NULL,
+        FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_plugin_executions_plugin_id ON plugin_executions(plugin_id);
+      CREATE INDEX IF NOT EXISTS idx_plugin_executions_user_id ON plugin_executions(user_id);
+      CREATE INDEX IF NOT EXISTS idx_plugin_executions_conversation_id ON plugin_executions(conversation_id);
+      CREATE INDEX IF NOT EXISTS idx_plugin_executions_status ON plugin_executions(status);
+      CREATE INDEX IF NOT EXISTS idx_plugin_executions_created_at ON plugin_executions(created_at);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_plugin_executions_created_at;
+      DROP INDEX IF EXISTS idx_plugin_executions_status;
+      DROP INDEX IF EXISTS idx_plugin_executions_conversation_id;
+      DROP INDEX IF EXISTS idx_plugin_executions_user_id;
+      DROP INDEX IF EXISTS idx_plugin_executions_plugin_id;
+      DROP TABLE IF EXISTS plugin_executions;
+    `
   }
 ];
 

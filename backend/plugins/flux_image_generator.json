@@ -1,0 +1,71 @@
+{
+  "id": "flux_image_generator",
+  "name": "flux_image_generator",
+  "display_name": "Flux Image Generator",
+  "description": "Generate high-quality images using FLUX.1 [schnell] model via fal.ai",
+  "version": "2.0.0",
+  "author": "Skillbox",
+  "plugin_type": "image_generation",
+  "runtime_type": "nodejs",
+  "manifest": {
+    "name": "flux_image_generator",
+    "display_name": "Flux Image Generator",
+    "version": "2.0.0",
+    "description": "Generate high-quality images using FLUX.1 [schnell] model via fal.ai",
+    "author": "Skillbox",
+          "runtime": "nodejs",
+    "functions": [
+      {
+        "name": "image_gen",
+        "description": "Generate images from text descriptions. Use this when the user requests an image based on a scene description, such as a diagram, portrait, comic, meme, or any other visual. Always use this tool for image generation requests.",
+        "parameters": {
+          "prompt": {
+            "type": "string",
+            "description": "The prompt to generate an image from",
+            "required": true
+          },
+          "image_size": {
+            "type": "enum",
+            "description": "The size of the generated image",
+            "values": ["square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9"],
+            "default": "landscape_4_3"
+          },
+          "num_inference_steps": {
+            "type": "number",
+            "description": "The number of inference steps to perform",
+            "default": 4,
+            "min": 1,
+            "max": 10
+          }
+        }
+      }
+    ],
+    "code": "async function image_gen(parameters) {\n  try {\n    console.log('🔧 Flux: Starting image generation with prompt:', parameters.prompt);\n    \n    // Debug: Check fal client availability\n    console.log('🔍 Flux: fal client debug:', {\n      falExists: typeof fal !== 'undefined',\n      falRunExists: fal && typeof fal.run === 'function',\n      falType: typeof fal\n    });\n    \n    if (!fal || typeof fal.run !== 'function') {\n      throw new Error('fal.ai client not available or fal.run method not found. Please check API key configuration.');\n    }\n    \n    const requestData = {\n      prompt: parameters.prompt,\n      image_size: parameters.image_size || 'landscape_4_3',\n      num_inference_steps: parameters.num_inference_steps || 4,\n      enable_safety_checker: true\n    };\n    \n    console.log('📝 Flux: Request data:', JSON.stringify(requestData, null, 2));\n    \n    // Use fal.run for direct API calls\n    console.log('🚀 Flux: Calling fal.run with model: fal-ai/flux/schnell');\n    const result = await fal.run('fal-ai/flux/schnell', {\n      input: requestData\n    });\n    \n    console.log('✅ Flux: Image generation completed');\n    console.log('📊 Flux: Result:', JSON.stringify(result, null, 2));\n    console.log('🔍 Flux: Result type:', typeof result);\n    console.log('🔍 Flux: Result keys:', Object.keys(result || {}));\n    \n    // Handle fal.ai response format: result.data.images[]\n    let imageUrl = null;\n    let images = null;\n    let resultData = null;\n    \n    if (result && result.data && result.data.images && Array.isArray(result.data.images) && result.data.images.length > 0) {\n      // fal.ai nested format: result.data.images[]\n      images = result.data.images;\n      imageUrl = result.data.images[0].url;\n      resultData = result.data;\n      console.log('✅ Flux: Found fal.ai nested format with', result.data.images.length, 'images');\n    } else if (result && result.images && Array.isArray(result.images) && result.images.length > 0) {\n      // Standard images array format\n      images = result.images;\n      imageUrl = result.images[0].url;\n      resultData = result;\n      console.log('✅ Flux: Found standard images array with', result.images.length, 'images');\n    } else if (result && result.image && result.image.url) {\n      // Single image format\n      imageUrl = result.image.url;\n      images = [result.image];\n      resultData = result;\n      console.log('✅ Flux: Found single image format');\n    } else if (result && result.url) {\n      // Direct URL format\n      imageUrl = result.url;\n      images = [{ url: result.url }];\n      resultData = result;\n      console.log('✅ Flux: Found direct URL format');\n    } else if (result && typeof result === 'string' && result.startsWith('http')) {\n      // Direct string URL\n      imageUrl = result;\n      images = [{ url: result }];\n      resultData = { url: result };\n      console.log('✅ Flux: Found string URL format');\n    }\n    \n    if (imageUrl) {\n      console.log('🎉 Flux: Successfully extracted image URL:', imageUrl);\n      \n      return {\n        success: true,\n        data: {\n          image_url: imageUrl,\n          prompt: resultData.prompt || parameters.prompt,\n          model: 'flux-schnell',\n          provider: 'fal.ai',\n          metadata: {\n            image_size: requestData.image_size,\n            num_inference_steps: requestData.num_inference_steps,\n            seed: resultData.seed,\n            has_nsfw_concepts: resultData.has_nsfw_concepts || [false],\n            images_count: images ? images.length : 1,\n            width: images && images[0] ? images[0].width : null,\n            height: images && images[0] ? images[0].height : null\n          }\n        },\n        message: `Image generated successfully: ${parameters.prompt}`\n      };\n    } else {\n      console.error('❌ Flux: No valid image found in result:', result);\n      console.error('❌ Flux: Available keys:', Object.keys(result || {}));\n      if (result && result.data) {\n        console.error('❌ Flux: Data keys:', Object.keys(result.data || {}));\n      }\n      throw new Error('No image generated in response - unsupported API response format');\n    }\n    \n  } catch (error) {\n    console.error('❌ Flux: Image generation failed:', error);\n    console.error('❌ Flux: Error details:', {\n      message: error.message,\n      stack: error.stack,\n      name: error.name\n    });\n    \n    return {\n      success: false,\n      error: error.message || 'Unknown error occurred',\n      data: null,\n      message: `Failed to generate image: ${error.message}`\n    };\n  }\n}"
+  },
+  "config_schema": {
+    "api_key": {
+      "type": "string",
+      "description": "fal.ai API Key",
+      "required": true,
+      "secret": true
+    },
+    "safety_tolerance": {
+      "type": "number",
+      "description": "Safety filter tolerance level",
+      "default": 3,
+      "min": 1,
+      "max": 5
+    },
+    "output_format": {
+      "type": "enum",
+      "description": "Output image format",
+      "values": ["png", "jpg", "webp"],
+      "default": "png"
+    }
+  },
+  "dependencies": [
+    "@fal-ai/client"
+  ],
+  "is_active": true,
+  "is_public": true
+} 
