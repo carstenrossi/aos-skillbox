@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ChatModalProps, SupportedLanguage, Conversation } from '../types';
 import { X, Send, Upload, Plus, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { translations } from '../utils/translations';
@@ -27,7 +27,6 @@ const ChatModalWithHistory: React.FC<ChatModalWithHistoryProps> = ({
   const [showSidebar, setShowSidebar] = useState(true);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(conversation || null);
   const [currentAssistant, setCurrentAssistant] = useState(assistant);
-  const [historyMessages, setHistoryMessages] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Get authentication status from user prop
@@ -50,12 +49,26 @@ const ChatModalWithHistory: React.FC<ChatModalWithHistoryProps> = ({
   // Use hook messages directly (loadConversation will manage the state)
   const messages = hookMessages;
 
-  // Override functions if not authenticated
-  const safeSendMessage = isAuthenticated ? sendMessage : async () => {};
-  const safeRetryLastMessage = isAuthenticated ? retryLastMessage : async () => {};
-  const safeStartNewConversation = isAuthenticated ? startNewConversation : async () => {};
-  const safeLoadConversation = isAuthenticated ? loadConversation : async () => {};
-  const safeUploadFiles = isAuthenticated ? uploadFiles : async () => {};
+  // Override functions if not authenticated - memoized to prevent re-renders
+  const safeSendMessage = useMemo(() => 
+    isAuthenticated ? sendMessage : async () => {}, 
+    [isAuthenticated, sendMessage]
+  );
+  
+  const safeRetryLastMessage = useMemo(() => 
+    isAuthenticated ? retryLastMessage : async () => {}, 
+    [isAuthenticated, retryLastMessage]
+  );
+  
+  const safeStartNewConversation = useMemo(() => 
+    isAuthenticated ? startNewConversation : async () => {}, 
+    [isAuthenticated, startNewConversation]
+  );
+  
+  const safeUploadFiles = useMemo(() => 
+    isAuthenticated ? uploadFiles : async () => {}, 
+    [isAuthenticated, uploadFiles]
+  );
 
   const t = translations[language];
 
@@ -74,8 +87,10 @@ const ChatModalWithHistory: React.FC<ChatModalWithHistoryProps> = ({
       try {
         console.log('Loading conversation:', selectedConversation.id);
         
-        // Use the loadConversation from useChat hook
-        await safeLoadConversation(selectedConversation.id);
+        // Use the loadConversation from useChat hook directly
+        if (isAuthenticated) {
+          await loadConversation(selectedConversation.id);
+        }
         
         console.log('Conversation loaded successfully');
       } catch (error) {
@@ -84,7 +99,7 @@ const ChatModalWithHistory: React.FC<ChatModalWithHistoryProps> = ({
     };
 
     loadConversationMessages();
-  }, [selectedConversation, isAuthenticated, currentAssistant, safeLoadConversation]);
+  }, [selectedConversation?.id, isAuthenticated, currentAssistant?.id, loadConversation]);
 
   // Combine history messages with current messages - simplified since useChat manages all state now
   const allMessages = messages;
@@ -126,7 +141,7 @@ const ChatModalWithHistory: React.FC<ChatModalWithHistoryProps> = ({
     console.log('Files selected:', files);
   };
 
-  const handleConversationSelect = (conversation: Conversation) => {
+  const handleConversationSelect = useCallback((conversation: Conversation) => {
     if (!isAuthenticated) return;
     
     // Switch to the assistant for this conversation FIRST
@@ -136,21 +151,21 @@ const ChatModalWithHistory: React.FC<ChatModalWithHistoryProps> = ({
     }
     
     setSelectedConversation(conversation);
-    setHistoryMessages([]); // Clear previous messages
     // The useEffect will handle loading the conversation once currentAssistant is updated
-  };
+  }, [isAuthenticated, assistants, currentAssistant?.id]);
 
-  const handleNewConversation = async (assistantId: string) => {
+  const handleNewConversation = useCallback(async (assistantId: string) => {
     if (!isAuthenticated) return;
     const newAssistant = assistants.find(a => a.id === assistantId);
     if (newAssistant) {
       setCurrentAssistant(newAssistant);
       setSelectedConversation(null);
-      setHistoryMessages([]); // Clear history messages
       // Clear existing messages when starting new conversation
-      await safeStartNewConversation();
+      if (isAuthenticated) {
+        await startNewConversation();
+      }
     }
-  };
+  }, [isAuthenticated, assistants, startNewConversation]);
 
   if (!isOpen) return null;
 
@@ -201,7 +216,7 @@ const ChatModalWithHistory: React.FC<ChatModalWithHistoryProps> = ({
         <div className={`transition-all duration-300 ${showSidebar ? 'w-80' : 'w-0'} overflow-hidden border-r border-gray-200 bg-white/50`}>
           {isAuthenticated && currentAssistant ? (
             <ConversationList
-              assistants={[currentAssistant]}
+              assistants={assistants}
               selectedConversationId={selectedConversation?.id}
               onConversationSelect={handleConversationSelect}
               onNewConversation={handleNewConversation}
@@ -319,7 +334,7 @@ const ChatModalWithHistory: React.FC<ChatModalWithHistoryProps> = ({
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-xs lg:max-w-md space-y-2 ${
+                  className={`max-w-[85%] space-y-2 ${
                     msg.role === 'user' ? 'items-end' : 'items-start'
                   } flex flex-col`}
                 >

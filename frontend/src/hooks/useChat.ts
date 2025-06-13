@@ -88,12 +88,7 @@ export function useChat(assistant: Assistant | null): UseChatReturn {
         setState(prev => ({
           ...prev,
           conversation: conversation,
-          messages: [{
-            id: `welcome-${Date.now()}`,
-            role: 'assistant',
-            content: `Hallo! Ich bin ${assistant.display_name}. Wie kann ich Ihnen helfen?`,
-            timestamp: new Date(),
-          }],
+          messages: [],
           isLoading: false,
         }));
 

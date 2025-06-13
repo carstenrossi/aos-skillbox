@@ -85,12 +85,12 @@
 
   /* Chat styles */
   .chat-bubble-user {
-    @apply bg-gradient-skillbox text-white rounded-2xl rounded-br-md px-4 py-3 max-w-xs ml-auto;
-  }
+@apply bg-gradient-skillbox text-white rounded-2xl rounded-br-md px-4 py-3 max-w-[85%] ml-auto;
+}
 
-  .chat-bubble-ai {
-    @apply bg-gray-100 text-gray-800 rounded-2xl rounded-bl-md px-4 py-3 max-w-xs mr-auto;
-  }
+.chat-bubble-ai {
+@apply bg-gray-100 text-gray-800 rounded-2xl rounded-bl-md px-4 py-3 max-w-[85%] mr-auto;
+}
 
   /* Typing indicator */
   .typing-indicator {

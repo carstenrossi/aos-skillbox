@@ -575,7 +575,7 @@ Wenn der Benutzer etwas anderes fragt, antworte normal.`;
           content: content
         }
       ],
-      max_tokens: 1000,
+      max_tokens: 8192,
       temperature: 0.7,
       stream: false
     };

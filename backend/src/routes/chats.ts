@@ -93,7 +93,7 @@ router.post('/:conversationId/messages', async (req, res) => {
           content: message
         }
       ],
-      max_tokens: 1000,
+      max_tokens: 8192,
       temperature: 0.7,
       stream: false
     };

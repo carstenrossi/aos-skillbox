@@ -1638,15 +1638,14 @@ const AssistantModal: React.FC<AssistantModalProps> = ({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              System Prompt
+              System Prompt <span className="text-gray-400 text-sm">(Optional)</span>
             </label>
             <textarea
               value={formData.system_prompt || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, system_prompt: e.target.value }))}
               rows={4}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="System Prompt für den Assistenten..."
-              required
+              placeholder="You are a helpful AI Assistant. Answer in the language the user uses to query you."
             />
           </div>
 

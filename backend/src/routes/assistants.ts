@@ -121,7 +121,7 @@ router.post('/', async (req, res) => {
       api_url,
       jwt_token: jwt_token || '',
       model_name: model_name || name.toLowerCase().replace(/\s+/g, '-'),
-      system_prompt: system_prompt || 'Du bist ein hilfreicher KI-Assistant. Antworte höflich und professionell auf Deutsch.',
+      system_prompt: system_prompt || 'You are a helpful AI Assistant. Answer in the language the user uses to query you.',
       is_active: is_active !== undefined ? is_active : true
     });
     

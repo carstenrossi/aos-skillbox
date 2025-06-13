@@ -152,7 +152,7 @@ const ChatModal: React.FC<ChatModalProps> = ({
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-xs lg:max-w-md space-y-2 ${
+                className={`max-w-[85%] space-y-2 ${
                   msg.role === 'user' ? 'items-end' : 'items-start'
                 } flex flex-col`}
               >

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { MessageSquare, Plus, Trash2, Edit3, Clock } from 'lucide-react';
 import { Conversation, Assistant, ApiResponse } from '../types';
 import { ApiService } from '../services/api';
@@ -16,7 +16,7 @@ interface ConversationWithAssistant extends Conversation {
   assistant?: Assistant;
 }
 
-const ConversationList: React.FC<ConversationListProps> = ({
+const ConversationList: React.FC<ConversationListProps> = React.memo(({
   assistants,
   selectedConversationId,
   onConversationSelect,
@@ -170,15 +170,17 @@ const ConversationList: React.FC<ConversationListProps> = ({
     }
   };
 
-  // Group conversations by assistant
-  const groupedConversations = conversations.reduce((groups, conv) => {
-    const assistantId = conv.assistant_id;
-    if (!groups[assistantId]) {
-      groups[assistantId] = [];
-    }
-    groups[assistantId].push(conv);
-    return groups;
-  }, {} as Record<string, ConversationWithAssistant[]>);
+  // Group conversations by assistant - memoized for performance
+  const groupedConversations = useMemo(() => {
+    return conversations.reduce((groups, conv) => {
+      const assistantId = conv.assistant_id;
+      if (!groups[assistantId]) {
+        groups[assistantId] = [];
+      }
+      groups[assistantId].push(conv);
+      return groups;
+    }, {} as Record<string, ConversationWithAssistant[]>);
+  }, [conversations]);
 
   if (loading) {
     return (
@@ -341,6 +343,9 @@ const ConversationList: React.FC<ConversationListProps> = ({
       </div>
     </div>
   );
-};
+});
+
+// Add display name for better debugging
+ConversationList.displayName = 'ConversationList';
 
 export default ConversationList; 
