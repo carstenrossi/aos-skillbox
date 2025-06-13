@@ -433,17 +433,25 @@ router.post('/:id/messages', authenticateToken as any, async (req: Request, res:
       if (pluginResult && pluginResult.functionCalls && pluginResult.functionCalls.length > 0) {
         console.log(`🎯 Executed ${pluginResult.functionCalls.length} plugin function(s)`);
         
-        // For image generation plugins, return immediately with generated images
-        const imageResults = pluginResult.pluginResults ? pluginResult.pluginResults.filter((result: any) => 
-          result.success && (result.pluginName.includes('image') || result.pluginName.includes('flux'))
-        ) : [];
+        // Check if any plugins were successfully executed
+        const successfulResults = pluginResult.pluginResults ? pluginResult.pluginResults.filter((result: any) => result.success) : [];
 
-        if (imageResults.length > 0) {
+        if (successfulResults.length > 0) {
           // Create assistant message with plugin results
-          let assistantContent = pluginResult.processedMessage ? pluginResult.processedMessage.content : 'Plugin-Ausführung abgeschlossen';
+          let assistantContent = '';
           
-          // Add plugin execution summaries
-          if (pluginResult.pluginResults) {
+          // Extract message events from plugin events
+          const messageEvents = pluginEvents.filter(event => event.type === 'message');
+          if (messageEvents.length > 0) {
+            // Use the content from message events (formatted plugin output)
+            assistantContent = messageEvents.map(event => event.data.content).join('\n\n');
+          } else {
+            // Fallback to processed message content
+            assistantContent = pluginResult.processedMessage ? pluginResult.processedMessage.content : 'Plugin-Ausführung abgeschlossen';
+          }
+          
+          // Add plugin execution summaries if no message events
+          if (messageEvents.length === 0 && pluginResult.pluginResults) {
             pluginResult.pluginResults.forEach((result: any) => {
               if (result.success) {
                 assistantContent += `\n\n✅ **${result.pluginName}**: ${result.resultSummary || 'Erfolgreich ausgeführt'}`;
@@ -678,6 +686,112 @@ Wenn der Benutzer etwas anderes fragt, antworte normal.`;
                 const audioUrl = pluginExecResult.data.audio_url || pluginExecResult.data.data?.audio_url;
                 console.log('🎵 Audio URL detected:', audioUrl?.substring(0, 50) + '...');
                 resultContent = `🎵 **Audio erfolgreich generiert!**\n\n[Audio anhören](${audioUrl})`;
+              } else if (pluginName === 'google_keyword_generator' && pluginExecResult.data) {
+                // Keyword generation result
+                console.log('🔍 Keyword generation result:', pluginExecResult.data);
+                let keywords = pluginExecResult.data.keywords || pluginExecResult.data.data?.keywords || [];
+                
+                // Fix UTF-8 encoding issues for German umlauts
+                keywords = keywords.map((keyword: string) => {
+                  let fixed = keyword;
+                  
+                  // Fix specific broken characters
+                  fixed = fixed.replace(/zitronens�ure/g, 'zitronensäure');
+                  fixed = fixed.replace(/s�ure/g, 'säure');
+                  
+                  // German UTF-8 fixes
+                  fixed = fixed.replace(/Ã¤/g, 'ä');
+                  fixed = fixed.replace(/Ã¶/g, 'ö');
+                  fixed = fixed.replace(/Ã¼/g, 'ü');
+                  fixed = fixed.replace(/ÃŸ/g, 'ß');
+                  fixed = fixed.replace(/Ã„/g, 'Ä');
+                  fixed = fixed.replace(/Ã–/g, 'Ö');
+                  fixed = fixed.replace(/Ãœ/g, 'Ü');
+                  
+                  // French UTF-8 fixes
+                  fixed = fixed.replace(/Ã©/g, 'é');
+                  fixed = fixed.replace(/Ã¨/g, 'è');
+                  fixed = fixed.replace(/Ãª/g, 'ê');
+                  fixed = fixed.replace(/Ã«/g, 'ë');
+                  fixed = fixed.replace(/Ã§/g, 'ç');
+                  fixed = fixed.replace(/Ã /g, 'à');
+                  fixed = fixed.replace(/Ã¢/g, 'â');
+                  fixed = fixed.replace(/Ã´/g, 'ô');
+                  fixed = fixed.replace(/Ã®/g, 'î');
+                  fixed = fixed.replace(/Ã¯/g, 'ï');
+                  fixed = fixed.replace(/Ã¹/g, 'ù');
+                  fixed = fixed.replace(/Ã»/g, 'û');
+                  fixed = fixed.replace(/Ã¼/g, 'ü');
+                  fixed = fixed.replace(/Ã¿/g, 'ÿ');
+                  
+                  // Spanish UTF-8 fixes
+                  fixed = fixed.replace(/Ã±/g, 'ñ');
+                  fixed = fixed.replace(/Ã¡/g, 'á');
+                  fixed = fixed.replace(/Ã­/g, 'í');
+                  fixed = fixed.replace(/Ã³/g, 'ó');
+                  fixed = fixed.replace(/Ãº/g, 'ú');
+                  fixed = fixed.replace(/Ã‰/g, 'É');
+                  fixed = fixed.replace(/Ã/g, 'Ñ');
+                  
+                  // Italian UTF-8 fixes
+                  fixed = fixed.replace(/Ã /g, 'à');
+                  fixed = fixed.replace(/Ã¬/g, 'ì');
+                  fixed = fixed.replace(/Ã²/g, 'ò');
+                  
+                  // Portuguese UTF-8 fixes
+                  fixed = fixed.replace(/Ã£/g, 'ã');
+                  fixed = fixed.replace(/Ãµ/g, 'õ');
+                  fixed = fixed.replace(/Ã§/g, 'ç');
+                  
+                  // Scandinavian UTF-8 fixes (Norwegian, Swedish, Danish)
+                  fixed = fixed.replace(/Ã¥/g, 'å');
+                  fixed = fixed.replace(/Ã¦/g, 'æ');
+                  fixed = fixed.replace(/Ã¸/g, 'ø');
+                  fixed = fixed.replace(/Ã…/g, 'Å');
+                  fixed = fixed.replace(/Ã†/g, 'Æ');
+                  fixed = fixed.replace(/Ã˜/g, 'Ø');
+                  
+                  // Polish UTF-8 fixes
+                  fixed = fixed.replace(/Ä…/g, 'ą');
+                  fixed = fixed.replace(/Ä‡/g, 'ć');
+                  fixed = fixed.replace(/Ä™/g, 'ę');
+                  fixed = fixed.replace(/Å‚/g, 'ł');
+                  fixed = fixed.replace(/Å„/g, 'ń');
+                  fixed = fixed.replace(/Ã³/g, 'ó');
+                  fixed = fixed.replace(/Å›/g, 'ś');
+                  fixed = fixed.replace(/Åº/g, 'ź');
+                  fixed = fixed.replace(/Å¼/g, 'ż');
+                  
+                  // Czech UTF-8 fixes
+                  fixed = fixed.replace(/Ä/g, 'č');
+                  fixed = fixed.replace(/Ä/g, 'ď');
+                  fixed = fixed.replace(/Ä›/g, 'ě');
+                  fixed = fixed.replace(/Å/g, 'ň');
+                  fixed = fixed.replace(/Å™/g, 'ř');
+                  fixed = fixed.replace(/Å¡/g, 'š');
+                  fixed = fixed.replace(/Å¥/g, 'ť');
+                  fixed = fixed.replace(/Å¯/g, 'ů');
+                  fixed = fixed.replace(/Å¾/g, 'ž');
+                  
+                  // Dutch UTF-8 fixes
+                  fixed = fixed.replace(/Ã«/g, 'ë');
+                  fixed = fixed.replace(/Ã¯/g, 'ï');
+                  
+                  // General replacement for any remaining � characters
+                  fixed = fixed.replace(/�/g, '');
+                  
+                  return fixed;
+                });
+                
+                if (keywords && keywords.length > 0) {
+                  resultContent = `🔍 **Keywords für "${parameters.keyword || parameters.seed_keyword || parameters.query}":**\n\n`;
+                  keywords.forEach((keyword: string, index: number) => {
+                    resultContent += `${index + 1}. ${keyword}\n`;
+                  });
+                  resultContent += `\n💡 **SEO-Tipp:** Verwende diese Keywords in deinen Blog-Titeln, Meta-Beschreibungen und im Content für bessere Suchmaschinen-Rankings!`;
+                } else {
+                  resultContent = `🔍 **Keyword-Recherche abgeschlossen**, aber keine Keywords gefunden. Versuche es mit einem anderen Suchbegriff.`;
+                }
               } else if (pluginExecResult.data && pluginExecResult.data.success) {
                 // Generic success result
                 console.log('🔧 Generic success result for plugin:', pluginName, 'data keys:', Object.keys(pluginExecResult.data));

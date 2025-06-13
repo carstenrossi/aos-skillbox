@@ -402,7 +402,7 @@ export class PluginExecutor {
   }
 
   /**
-   * Execute webhook plugin (future implementation)
+   * Execute webhook plugin
    */
   private async executeWebhook(
     manifest: PluginManifest, 
@@ -410,7 +410,107 @@ export class PluginExecutor {
     parameters: any, 
     context: PluginExecutionContext
   ): Promise<any> {
-    throw new Error('Webhook plugin execution not yet implemented');
+    const webhookUrl = context.config.n8n_webhook_url || manifest.endpoints?.execute;
+    if (!webhookUrl) {
+      throw new Error('No webhook URL configured for webhook plugin');
+    }
+
+    // Prepare request payload
+    const payload = this.buildWebhookPayload(functionDef, parameters, context);
+
+    // Prepare headers
+    const headers: { [key: string]: string } = {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Accept': 'application/json; charset=utf-8',
+      'User-Agent': 'Skillbox-Plugin-System/1.0'
+    };
+
+    // Add authorization if API token is configured
+    if (context.config.api_token) {
+      headers['Authorization'] = `Bearer ${context.config.api_token}`;
+    }
+
+    const requestConfig = {
+      method: 'GET' as const, // n8n webhooks typically use GET with query params
+      url: webhookUrl,
+      headers,
+      params: payload, // Send as query parameters for GET request
+      timeout: (context.config.timeout || 30) * 1000, // Convert to milliseconds
+      responseType: 'json' as const,
+      responseEncoding: 'utf8' as const
+    };
+
+    await this.emitEvent(context.event_emitter, {
+      type: 'status',
+      data: {
+        status: 'in_progress',
+        description: `Calling webhook: ${new URL(webhookUrl).hostname}...`,
+        done: false
+      }
+    });
+
+    const response = await axios(requestConfig);
+
+    // Handle n8n webhook response
+    if (response.data) {
+      // Format the keywords for display
+      let formattedResponse = response.data;
+      
+      if ((response.data as any).Keywords && Array.isArray((response.data as any).Keywords)) {
+        const keywords = (response.data as any).Keywords.map((keyword: string) => {
+          // Fix common UTF-8 encoding issues for German umlauts
+          let fixed = keyword;
+          // Replace common encoding issues
+          fixed = fixed.replace(/Ã¤/g, 'ä');
+          fixed = fixed.replace(/Ã¶/g, 'ö');
+          fixed = fixed.replace(/Ã¼/g, 'ü');
+          fixed = fixed.replace(/ÃŸ/g, 'ß');
+          fixed = fixed.replace(/Ã„/g, 'Ä');
+          fixed = fixed.replace(/Ã–/g, 'Ö');
+          fixed = fixed.replace(/Ãœ/g, 'Ü');
+          // Fix the specific issue with zitronensäure
+          fixed = fixed.replace(/zitronensäure/g, 'zitronensäure');
+          fixed = fixed.replace(/säure/g, 'säure');
+          // General fallback for ä character in common contexts
+          fixed = fixed.replace(/ä/g, 'ä'); // Most common case
+          return fixed;
+        });
+        const keywordList = keywords.map((keyword: string, index: number) => `${index + 1}. ${keyword}`).join('\n');
+        
+        // Emit the keywords as a message to the chat
+        await this.emitEvent(context.event_emitter, {
+          type: 'message',
+          data: {
+            content: `🔍 **Keyword-Recherche Ergebnisse:**\n\n${keywordList}\n\n💡 **Tipp:** Diese Keywords eignen sich perfekt für SEO-optimierte Blog-Artikel!`,
+            done: false
+          }
+        });
+
+        // Also format the response data
+        formattedResponse = {
+          keywords: keywords,
+          count: keywords.length,
+          formatted_list: keywordList,
+          metadata: {
+            source: 'Google Autosuggest',
+            generated_at: new Date().toISOString()
+          }
+        };
+      }
+
+      await this.emitEvent(context.event_emitter, {
+        type: 'status',
+        data: {
+          status: 'completed',
+          description: `Webhook executed successfully - Generated ${((response.data as any).Keywords?.length || 0)} keywords`,
+          done: true
+        }
+      });
+
+      return formattedResponse;
+    }
+
+    throw new Error('Empty response from webhook');
   }
 
   /**
@@ -422,6 +522,37 @@ export class PluginExecutor {
     // Add function parameters
     Object.keys(parameters).forEach(key => {
       if (parameters[key] !== undefined) {
+        payload[key] = parameters[key];
+      }
+    });
+
+    // Add configuration parameters if they match function parameters
+    Object.keys(context.config).forEach(key => {
+      if (functionDef.parameters[key] && payload[key] === undefined) {
+        payload[key] = context.config[key];
+      }
+    });
+
+    return payload;
+  }
+
+  /**
+   * Build webhook payload for function call
+   */
+  private buildWebhookPayload(functionDef: PluginFunction, parameters: any, context: PluginExecutionContext): any {
+    const payload: any = {};
+
+    // For n8n webhooks, we typically send parameters as query params
+    // The main parameter is usually 'q' for the keyword
+    // Support multiple parameter names for keywords
+    const keywordValue = parameters.keyword || parameters.seed_keyword || parameters.query || parameters.q;
+    if (keywordValue) {
+      payload.q = keywordValue;
+    }
+
+    // Add other function parameters
+    Object.keys(parameters).forEach(key => {
+      if (parameters[key] !== undefined && !['keyword', 'seed_keyword', 'query', 'q'].includes(key)) {
         payload[key] = parameters[key];
       }
     });
@@ -498,6 +629,14 @@ export class PluginExecutor {
         }
       }
     });
+
+    // Custom validation for keyword generator: at least one keyword parameter must be provided
+    if (functionDef.name === 'generate_keywords') {
+      const hasKeyword = parameters.keyword || parameters.seed_keyword || parameters.query || parameters.q;
+      if (!hasKeyword) {
+        errors.push('At least one keyword parameter (keyword, seed_keyword, query, or q) must be provided');
+      }
+    }
 
     if (errors.length > 0) {
       throw new Error(`Parameter validation failed: ${errors.join(', ')}`);

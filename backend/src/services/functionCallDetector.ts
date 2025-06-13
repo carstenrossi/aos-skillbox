@@ -132,9 +132,9 @@ export class FunctionCallDetector {
     const imageGenerationCalls = await this.detectImageGenerationRequests(message, availablePlugins);
     calls.push(...imageGenerationCalls);
 
-    // Check for automation requests
-    const automationCalls = await this.detectAutomationRequests(message, availablePlugins);
-    calls.push(...automationCalls);
+          // Check for automation requests
+      const automationCalls = await this.detectAutomationRequests(message, availablePlugins);
+      calls.push(...automationCalls);
 
     return calls;
   }
