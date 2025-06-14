@@ -75,7 +75,9 @@ export class PluginMigrationService {
         logger.info(`✅ Successfully imported plugin: ${plugin.name}`);
         successCount++;
       } catch (error) {
-        logger.error(`❌ Failed to import plugin ${plugin.name}:`, error instanceof Error ? error.message : error);
+        logger.error(`❌ Failed to import plugin ${plugin.name}:`);
+        logger.error(`   Error message: ${error instanceof Error ? error.message : error}`);
+        logger.error(`   Error stack: ${error instanceof Error ? error.stack : 'No stack trace'}`);
         failCount++;
       }
     }
