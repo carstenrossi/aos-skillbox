@@ -1,0 +1,92 @@
+{
+  "id": "flux_pixar_generator",
+  "name": "flux_pixar_generator",
+  "display_name": "Flux Pixar Style Generator",
+  "description": "Generate Pixar-style images using FLUX.1 [dev] model with custom LORA via fal.ai",
+  "version": "1.0.0",
+  "author": "Skillbox",
+  "plugin_type": "image_generation",
+  "runtime_type": "nodejs",
+  "manifest": {
+    "name": "flux_pixar_generator",
+    "display_name": "Flux Pixar Style Generator",
+    "version": "1.0.0",
+    "description": "Generate Pixar-style images using FLUX.1 [dev] model with custom LORA via fal.ai",
+    "author": "Skillbox",
+    "runtime": "nodejs",
+    "functions": [
+      {
+        "name": "generate_pixar_image",
+        "description": "Generate Pixar-style images from text descriptions. Use this when the user requests Pixar-style, animated, or cartoon-style images. The plugin automatically applies Pixar styling.",
+        "parameters": {
+          "prompt": {
+            "type": "string",
+            "description": "The prompt to generate a Pixar-style image from. The 'pixar' trigger word will be automatically added.",
+            "required": true
+          },
+          "image_size": {
+            "type": "enum",
+            "description": "The size of the generated image",
+            "values": ["square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9"],
+            "default": "landscape_4_3"
+          },
+          "num_inference_steps": {
+            "type": "number",
+            "description": "The number of inference steps to perform",
+            "default": 28,
+            "min": 1,
+            "max": 50
+          },
+          "guidance_scale": {
+            "type": "number",
+            "description": "Guidance scale for generation",
+            "default": 3.5,
+            "min": 1.0,
+            "max": 20.0
+          },
+          "lora_weight": {
+            "type": "number",
+            "description": "Weight of the Pixar LORA (0.0 to 2.0)",
+            "default": 1.0,
+            "min": 0.0,
+            "max": 2.0
+          }
+        }
+      }
+    ],
+    "code": "async function generate_pixar_image(parameters) {\n  try {\n    console.log('🎬 Pixar: Starting Pixar-style image generation with prompt:', parameters.prompt);\n    \n    // Debug: Check fal client availability\n    console.log('🔍 Pixar: fal client debug:', {\n      falExists: typeof fal !== 'undefined',\n      falRunExists: fal && typeof fal.run === 'function',\n      falType: typeof fal\n    });\n    \n    if (!fal || typeof fal.run !== 'function') {\n      throw new Error('fal.ai client not available or fal.run method not found. Please check API key configuration.');\n    }\n    \n    // Automatically add pixar trigger word to prompt if not present\n    let enhancedPrompt = parameters.prompt;\n    if (!enhancedPrompt.toLowerCase().includes('pixar')) {\n      enhancedPrompt = `pixar style ${enhancedPrompt}`;\n    }\n    \n    const requestData = {\n      prompt: enhancedPrompt,\n      image_size: parameters.image_size || 'landscape_4_3',\n      num_inference_steps: parameters.num_inference_steps || 28,\n      guidance_scale: parameters.guidance_scale || 3.5,\n      enable_safety_checker: true,\n      loras: [\n        {\n          name: \"pixar-lora\",\n          url: \"https://huggingface.co/kammannrossi/pixar-lora/resolve/main/PixarXL.safetensors\",\n          weight: parameters.lora_weight || 1.0\n        }\n      ]\n    };\n    \n    console.log('📝 Pixar: Request data:', JSON.stringify(requestData, null, 2));\n    \n    // Use fal.run for FLUX.1 [dev] model with LORA\n    console.log('🚀 Pixar: Calling fal.run with model: fal-ai/flux/dev');\n    const result = await fal.run('fal-ai/flux/dev', {\n      input: requestData\n    });\n    \n    console.log('✅ Pixar: Image generation completed');\n    console.log('📊 Pixar: Result:', JSON.stringify(result, null, 2));\n    console.log('🔍 Pixar: Result type:', typeof result);\n    console.log('🔍 Pixar: Result keys:', Object.keys(result || {}));\n    \n    // Handle fal.ai response format: result.data.images[]\n    let imageUrl = null;\n    let images = null;\n    let resultData = null;\n    \n    if (result && result.data && result.data.images && Array.isArray(result.data.images) && result.data.images.length > 0) {\n      // fal.ai nested format: result.data.images[]\n      images = result.data.images;\n      imageUrl = result.data.images[0].url;\n      resultData = result.data;\n      console.log('✅ Pixar: Found fal.ai nested format with', result.data.images.length, 'images');\n    } else if (result && result.images && Array.isArray(result.images) && result.images.length > 0) {\n      // Standard images array format\n      images = result.images;\n      imageUrl = result.images[0].url;\n      resultData = result;\n      console.log('✅ Pixar: Found standard images array with', result.images.length, 'images');\n    } else if (result && result.image && result.image.url) {\n      // Single image format\n      imageUrl = result.image.url;\n      images = [result.image];\n      resultData = result;\n      console.log('✅ Pixar: Found single image format');\n    } else if (result && result.url) {\n      // Direct URL format\n      imageUrl = result.url;\n      images = [{ url: result.url }];\n      resultData = result;\n      console.log('✅ Pixar: Found direct URL format');\n    } else if (result && typeof result === 'string' && result.startsWith('http')) {\n      // Direct string URL\n      imageUrl = result;\n      images = [{ url: result }];\n      resultData = { url: result };\n      console.log('✅ Pixar: Found string URL format');\n    }\n    \n    if (imageUrl) {\n      console.log('🎉 Pixar: Successfully extracted image URL:', imageUrl);\n      \n      return {\n        success: true,\n        data: {\n          image_url: imageUrl,\n          prompt: resultData.prompt || enhancedPrompt,\n          original_prompt: parameters.prompt,\n          model: 'flux-dev-pixar',\n          provider: 'fal.ai',\n          style: 'pixar',\n          metadata: {\n            image_size: requestData.image_size,\n            num_inference_steps: requestData.num_inference_steps,\n            guidance_scale: requestData.guidance_scale,\n            lora_weight: requestData.loras[0].weight,\n            lora_name: requestData.loras[0].name,\n            seed: resultData.seed,\n            has_nsfw_concepts: resultData.has_nsfw_concepts || [false],\n            images_count: images ? images.length : 1,\n            width: images && images[0] ? images[0].width : null,\n            height: images && images[0] ? images[0].height : null\n          }\n        },\n        message: `Pixar-style image generated successfully: ${parameters.prompt}`\n      };\n    } else {\n      console.error('❌ Pixar: No valid image found in result:', result);\n      console.error('❌ Pixar: Available keys:', Object.keys(result || {}));\n      if (result && result.data) {\n        console.error('❌ Pixar: Data keys:', Object.keys(result.data || {}));\n      }\n      throw new Error('No image generated in response - unsupported API response format');\n    }\n    \n  } catch (error) {\n    console.error('❌ Pixar: Image generation failed:', error);\n    console.error('❌ Pixar: Error details:', {\n      message: error.message,\n      stack: error.stack,\n      name: error.name\n    });\n    \n    return {\n      success: false,\n      error: error.message || 'Unknown error occurred',\n      data: null,\n      message: `Failed to generate Pixar-style image: ${error.message}`\n    };\n  }\n}"
+  },
+  "config_schema": {
+    "api_key": {
+      "type": "string",
+      "description": "fal.ai API Key",
+      "required": true,
+      "secret": true
+    },
+    "default_lora_weight": {
+      "type": "number",
+      "description": "Default LORA weight for Pixar style",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 2.0
+    },
+    "safety_tolerance": {
+      "type": "number",
+      "description": "Safety filter tolerance level",
+      "default": 3,
+      "min": 1,
+      "max": 5
+    },
+    "output_format": {
+      "type": "enum",
+      "description": "Output image format",
+      "values": ["png", "jpg", "webp"],
+      "default": "png"
+    }
+  },
+  "dependencies": [
+    "@fal-ai/client"
+  ],
+  "is_active": true,
+  "is_public": true
+} 

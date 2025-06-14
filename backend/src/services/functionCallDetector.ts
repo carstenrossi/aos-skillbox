@@ -33,6 +33,16 @@ export class FunctionCallDetector {
     /(?:draw|paint|sketch)\s+(?:me\s+)?(.+)/i,
     /(?:can you|please)\s+(?:generate|create|make)\s+(?:an?\s+)?(?:image|picture)\s+(.+)/i,
     
+    // Pixar-specific patterns (German)
+    /(?:erstelle|generiere|erzeuge|mache)\s+(?:ein|eine)?\s*(?:pixar|cartoon|animiert|animation|disney)\s*(?:bild|stil|style|character|charakter)\s+(?:von|über|mit)?\s*(.+)/i,
+    /(?:im\s+)?(?:pixar|cartoon|disney)\s*(?:stil|style)\s*[:,-]?\s*(.+)/i,
+    /(?:zeichne|male)\s+(?:mir\s+)?(?:einen?|eine)\s+(?:pixar|cartoon|disney)\s+(.+)/i,
+    
+    // Pixar-specific patterns (English)
+    /(?:generate|create|make)\s+(?:a\s+)?(?:pixar|cartoon|animated|disney)\s*(?:style\s+)?(?:image|picture|character)\s+(?:of\s+)?(.+)/i,
+    /(?:in\s+)?(?:pixar|cartoon|disney)\s+style\s*[:,-]?\s*(.+)/i,
+    /(?:draw|paint)\s+(?:me\s+)?(?:a\s+)?(?:pixar|cartoon|disney)\s+(.+)/i,
+    
     // General plugin patterns
     /(?:use|call|execute|run)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+(?:to|for|with)\s+(.+)/i,
     /(?:invoke|trigger)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*[:\-]\s*(.+)/i
@@ -155,7 +165,48 @@ export class FunctionCallDetector {
     logger.debug(`Checking message for image generation patterns: "${message}"`);
     logger.debug(`Available image plugins: ${imagePlugins.map(p => p.name).join(', ')}`);
 
-    // Check all image generation patterns (first 6 patterns are for images)
+    // Check for Pixar-specific patterns first (patterns 6-11)
+    const pixarPatterns = this.naturalLanguagePatterns.slice(6, 12);
+    for (const pattern of pixarPatterns) {
+      const match = message.match(pattern);
+      if (match) {
+        logger.debug(`Matched Pixar pattern: ${pattern}`);
+        logger.debug(`Match result:`, match);
+        
+        const prompt = match[1]?.trim();
+        if (prompt && prompt.length > 3) {
+          // Look for Pixar-specific plugin first
+          const pixarPlugin = imagePlugins.find(p => p.name.includes('pixar') || p.display_name.toLowerCase().includes('pixar'));
+          
+          if (pixarPlugin) {
+            const manifest: PluginManifest = JSON.parse(pixarPlugin.manifest);
+            const generateFunc = manifest.functions.find(f => f.name === 'generate_pixar_image' || f.name === 'image_gen' || f.name === 'generate');
+
+            if (generateFunc) {
+              logger.info(`🎬 Detected Pixar image generation request: "${prompt}" using plugin: ${pixarPlugin.name}`);
+              
+              calls.push({
+                pluginId: pixarPlugin.id,
+                pluginName: pixarPlugin.name,
+                functionName: generateFunc.name,
+                parameters: {
+                  prompt: prompt,
+                  // Add default parameters from function definition
+                  ...this.getDefaultParameters(generateFunc)
+                },
+                originalText: match[0],
+                startIndex: message.indexOf(match[0]),
+                endIndex: message.indexOf(match[0]) + match[0].length
+              });
+              
+              return calls; // Return early for Pixar-specific matches
+            }
+          }
+        }
+      }
+    }
+
+    // Check standard image generation patterns (first 6 patterns)
     for (const pattern of this.naturalLanguagePatterns.slice(0, 6)) { 
       const match = message.match(pattern);
       if (match) {
@@ -164,8 +215,8 @@ export class FunctionCallDetector {
         
         const prompt = match[1]?.trim();
         if (prompt && prompt.length > 3) {
-          // Use the first available image generation plugin
-          const plugin = imagePlugins[0];
+          // Use the first available image generation plugin (prefer non-Pixar for general requests)
+          const plugin = imagePlugins.find(p => !p.name.includes('pixar')) || imagePlugins[0];
           const manifest: PluginManifest = JSON.parse(plugin.manifest);
           const generateFunc = manifest.functions.find(f => f.name === 'image_gen' || f.name === 'generate');
 
