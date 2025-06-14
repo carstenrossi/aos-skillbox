@@ -121,13 +121,60 @@ curl -X POST http://localhost:3001/api/admin/plugins/sync \
 
 ```
 backend/plugins/
-├── elevenlabs_tts.json           # Text-to-Speech Plugin
-├── flux_image_generator.json     # Bildgenerierung
-├── flux_pixar_generator.json     # Pixar-Style Bilder
-├── google_keyword_generator.json # Keyword Research (auto-exportiert)
+├── elevenlabs_tts.json           # Text-to-Speech Plugin (Beispiel)
+├── flux_image_generator.json     # Bildgenerierung (Beispiel)
+├── flux_pixar_generator.json     # Pixar-Style Bilder (Beispiel)
+├── google_keyword_generator.json # Keyword Research (Beispiel, auto-exportiert)
 └── templates/                    # Vorlagen (werden ignoriert)
     └── example_plugin.json
 ```
+
+**Hinweis:** Die 4 aufgelisteten Plugins sind Beispiele basierend auf dem aktuellen Entwicklungsstand. Je nach Projekt können andere oder zusätzliche Plugins vorhanden sein.
+
+#### 🚀 **Elestio Deployment & Container-Restart**
+
+**Problem:** Bei Elestio werden neue Docker-Images automatisch gepullt, aber Container müssen manuell neu gestartet werden, damit die Plugin-Migration läuft.
+
+**Lösung:** Nach einem Deployment mit neuen Plugin-Dateien:
+
+1. **Gehe zu deinem Elestio Dashboard**
+2. **Navigiere zur CI/CD Pipeline Overview Seite**
+3. **Klicke auf "Restart Stack"**
+4. **Warte auf Container-Neustart**
+5. **Verifiziere Plugin-Verfügbarkeit**
+
+**Verifikation:**
+```bash
+# Prüfe verfügbare Plugins
+curl -s https://your-domain.com/api/plugins | jq '.[].name'
+
+# Beispiel-Ausgabe (basierend auf aktuellen Beispiel-Plugins):
+# "elevenlabs_tts"
+# "flux_image_generator" 
+# "flux_pixar_generator"
+# "google_keyword_generator"
+```
+
+**⚠️ Nach Container-Restart: Plugin-Credentials neu eingeben**
+
+Nach einem Container-Restart sind die Plugins verfügbar, aber **alle API-Keys und Credentials müssen neu eingegeben werden**:
+
+1. **Gehe zum Admin-Panel** → Plugin-Verwaltung
+2. **Konfiguriere jeden Plugin einzeln (Beispiele basierend auf aktuellen Plugins):**
+   - **ElevenLabs TTS**: `ELEVENLABS_API_KEY`
+   - **Flux Image Generator**: `FLUX_API_KEY`, `FLUX_API_URL`
+   - **Flux Pixar Generator**: `FLUX_API_KEY`, `FLUX_API_URL`
+   - **Google Keyword Generator**: `GOOGLE_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID`
+3. **Teste jeden Plugin** um sicherzustellen, dass er funktioniert
+
+**Grund:** Plugin-Credentials werden in Environment-Variablen gespeichert, die bei Container-Restart zurückgesetzt werden.
+
+**Wann ist ein Restart nötig?**
+- ✅ Neue Plugin-Dateien hinzugefügt
+- ✅ Plugin-Migration-Code geändert
+- ✅ Docker-Images mit Plugin-Updates
+- ❌ Nur Frontend-Änderungen
+- ❌ Nur Backend-Code ohne Plugin-Bezug
 
 #### ⚠️ **Wichtige Hinweise**
 
@@ -135,6 +182,7 @@ backend/plugins/
 - **Backup-Sicherheit**: Plugin-Änderungen werden in den automatischen Backups gespeichert
 - **Fehlerbehandlung**: Fehlerhafte Plugins werden geloggt, aber stoppen nicht den Server
 - **Admin-Audit**: Alle Plugin-Synchronisationen werden im Audit-Log erfasst
+- **Elestio-Limitation**: Container-Restart ist manuell erforderlich für Plugin-Updates
 
 ## Verwendung
 
