@@ -30,6 +30,9 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/src/models ./src/models
 COPY --from=builder /app/src/config ./src/config
 
+# Copy plugin files for automatic migration
+COPY --from=builder /app/plugins ./plugins
+
 # Create startup script with environment-aware configuration
 RUN echo '#!/bin/sh' > /app/start.sh && \
     echo 'echo "🔧 Setting up data directories..."' >> /app/start.sh && \
