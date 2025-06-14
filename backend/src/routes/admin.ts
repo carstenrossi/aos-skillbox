@@ -7,6 +7,7 @@ import { authenticateToken, requireAdmin, customRateLimit } from '../middleware/
 import { AuthenticatedRequest } from '../types';
 import { body, query, validationResult } from 'express-validator';
 import { getUserModel } from '../models/UserSQLite';
+import { getPluginMigrationService } from '../services/pluginMigrationService';
 
 const router = Router();
 
@@ -511,6 +512,53 @@ router.get('/system/health', async (req: Request, res: Response): Promise<void> 
       error: {
         message: 'Health check failed',
         code: 'HEALTH_CHECK_FAILED',
+      },
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// POST /api/admin/plugins/sync - Manually sync plugins from backend/plugins/ directory
+router.post('/plugins/sync', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const adminUser = (req as unknown as AuthenticatedRequest).user!;
+    const pluginMigrationService = getPluginMigrationService();
+    
+    const result = await pluginMigrationService.syncPlugins();
+
+    // Log admin action
+    await auditService.logAdminAction({
+      adminUserId: adminUser.userId,
+      action: 'SYNC_PLUGINS',
+      details: {
+        imported: result.imported,
+        exported: result.exported,
+        errors: result.errors.length,
+      },
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+      severity: 'MEDIUM',
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        imported: result.imported,
+        exported: result.exported,
+        errors: result.errors,
+        message: `Successfully synced plugins: ${result.imported} imported, ${result.exported} exported`
+      },
+      timestamp: new Date().toISOString(),
+    });
+
+  } catch (error: any) {
+    console.error('Plugin sync error:', error.message);
+    
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to sync plugins',
+        code: 'PLUGIN_SYNC_FAILED',
       },
       timestamp: new Date().toISOString(),
     });

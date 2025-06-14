@@ -1,0 +1,165 @@
+{
+  "id": "google_keyword_generator",
+  "name": "google_keyword_generator",
+  "display_name": "Google Keyword Generator",
+  "description": "Generate SEO keywords using Google Autosuggest API. Perfect for content creators, SEO specialists, and marketers who need keyword research and suggestions.",
+  "version": "1.0.0",
+  "author": "Skillbox Team",
+  "plugin_type": "automation",
+  "runtime_type": "webhook",
+  "config_schema": {
+    "n8n_webhook_url": {
+      "type": "string",
+      "required": true,
+      "title": "n8n Webhook URL",
+      "description": "The complete webhook URL from your n8n instance (e.g., https://carstenrossi.app.n8n.cloud/webhook/76a63718-b3cb-4141-bc55-efa614d13f1d)",
+      "placeholder": "https://carstenrossi.app.n8n.cloud/webhook/76a63718-b3cb-4141-bc55-efa614d13f1d"
+    },
+    "timeout": {
+      "type": "number",
+      "required": false,
+      "default": 30,
+      "minimum": 5,
+      "maximum": 120,
+      "title": "Request Timeout",
+      "description": "Timeout for the webhook request in seconds"
+    },
+    "max_keywords": {
+      "type": "number",
+      "required": false,
+      "default": 10,
+      "minimum": 1,
+      "maximum": 50,
+      "title": "Maximum Keywords",
+      "description": "Maximum number of keywords to return"
+    },
+    "country_code": {
+      "type": "enum",
+      "required": false,
+      "default": "US",
+      "title": "Country Code",
+      "description": "Google country code for localized suggestions",
+      "values": [
+        "US",
+        "DE",
+        "GB",
+        "FR",
+        "ES",
+        "IT",
+        "CA",
+        "AU",
+        "NL",
+        "CH"
+      ]
+    }
+  },
+  "manifest": {
+    "name": "google_keyword_generator",
+    "display_name": "Google Keyword Generator",
+    "description": "Generate SEO keywords using Google Autosuggest API. Perfect for content creators, SEO specialists, and marketers who need keyword research and suggestions.",
+    "version": "1.0.0",
+    "author": "Skillbox Team",
+    "runtime": "webhook",
+    "functions": [
+      {
+        "name": "generate_keywords",
+        "description": "Generate keyword suggestions based on a seed keyword using Google Autosuggest. Use this when users ask for keyword research, SEO suggestions, content ideas, or related search terms.",
+        "parameters": {
+          "keyword": {
+            "type": "string",
+            "required": false,
+            "description": "The seed keyword or phrase to generate suggestions for (e.g., 'digital marketing', 'web development')"
+          },
+          "seed_keyword": {
+            "type": "string",
+            "required": false,
+            "description": "Alternative parameter name for the seed keyword (same as 'keyword')"
+          },
+          "query": {
+            "type": "string",
+            "required": false,
+            "description": "Alternative parameter name for the search query (same as 'keyword')"
+          },
+          "language": {
+            "type": "string",
+            "required": false,
+            "default": "en",
+            "description": "Language code for keyword suggestions (e.g., 'en', 'de', 'fr')"
+          }
+        }
+      },
+      {
+        "name": "bulk_keyword_research",
+        "description": "Generate keywords for multiple seed terms at once. Useful for comprehensive keyword research.",
+        "parameters": {
+          "keywords": {
+            "type": "array",
+            "required": true,
+            "description": "Array of seed keywords to research (e.g., ['SEO', 'content marketing', 'social media'])"
+          },
+          "combine_results": {
+            "type": "boolean",
+            "required": false,
+            "default": true,
+            "description": "Whether to combine all results into one list or return separate lists"
+          }
+        }
+      }
+    ],
+    "config_schema": {
+      "n8n_webhook_url": {
+        "type": "string",
+        "required": true,
+        "secret": false,
+        "description": "The webhook URL from your n8n workflow instance"
+      },
+      "timeout": {
+        "type": "number",
+        "required": false,
+        "default": 30,
+        "description": "Request timeout in seconds"
+      },
+      "max_keywords": {
+        "type": "number",
+        "required": false,
+        "default": 10,
+        "description": "Maximum number of keywords to return per request"
+      }
+    },
+    "endpoints": {
+      "execute": "{n8n_webhook_url}",
+      "health": "{n8n_webhook_url}/health"
+    },
+    "permissions": [
+      "internet_access",
+      "api_calls"
+    ],
+    "metadata": {
+      "category": "SEO & Marketing",
+      "tags": [
+        "seo",
+        "keywords",
+        "google",
+        "autosuggest",
+        "marketing",
+        "content"
+      ],
+      "documentation_url": "https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/",
+      "cost_model": "free",
+      "workflow_id": "ZdhipNLr8cK0RGnn",
+      "n8n_template_id": "2155",
+      "use_cases": [
+        "SEO keyword research",
+        "Content planning",
+        "Blog topic ideas",
+        "PPC campaign keywords",
+        "Competitor analysis",
+        "Long-tail keyword discovery"
+      ]
+    },
+    "plugin_type": "automation",
+    "runtime_type": "webhook"
+  },
+  "is_active": true,
+  "is_public": true
+}

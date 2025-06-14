@@ -53,6 +53,89 @@ backend/src/config/
 - Vollständige Security Headers
 - Gzip-Kompression
 
+## Plugin-Synchronisation
+
+### Automatische Plugin-Migration
+
+Das System implementiert eine **bidirektionale Plugin-Synchronisation**, die sicherstellt, dass alle Plugins bei Deployments verfügbar sind:
+
+#### 🔄 **Bidirektionale Synchronisation**
+
+**1. Import (Dateien → Datenbank):**
+- Scannt `backend/plugins/` Verzeichnis nach JSON-Dateien
+- Importiert neue Plugins automatisch in die Datenbank
+- Überspringt bereits vorhandene Plugins
+
+**2. Export (Datenbank → Dateien):**
+- Exportiert Plugins aus der Datenbank, die keine entsprechende JSON-Datei haben
+- Erstellt automatisch JSON-Dateien für von Administratoren erstellte Plugins
+- Stellt sicher, dass alle Plugins bei zukünftigen Deployments verfügbar sind
+
+#### 🚀 **Deployment-Verhalten**
+
+**Beim Container-Start:**
+```
+🔌 Starting plugin migration...
+📁 Found X plugin files in directory
+💾 Found Y existing plugins in database
+✅ All file plugins are up to date, no import needed
+📤 Found Z database plugins to export:
+   - plugin_name_1
+   - plugin_name_2
+✅ Successfully exported Z plugins
+🎉 Plugin synchronization completed successfully
+```
+
+**Szenarien:**
+
+1. **Neue Plugin-Dateien**: Werden automatisch in die Datenbank importiert
+2. **Von Admins erstellte Plugins**: Werden automatisch als JSON-Dateien exportiert
+3. **Bestehende Plugins**: Bleiben unverändert
+4. **Fehlerhafte Plugins**: Werden geloggt, aber stoppen nicht den Server-Start
+
+#### 🛠️ **Manuelle Synchronisation**
+
+Administratoren können die Plugin-Synchronisation auch manuell auslösen:
+
+```bash
+# Via Admin API
+curl -X POST http://localhost:3001/api/admin/plugins/sync \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+**Antwort:**
+```json
+{
+  "success": true,
+  "data": {
+    "imported": 2,
+    "exported": 1,
+    "errors": [],
+    "message": "Successfully synchronized 3 plugins"
+  },
+  "timestamp": "2025-06-14T18:09:54.954Z"
+}
+```
+
+#### 📁 **Plugin-Verzeichnisstruktur**
+
+```
+backend/plugins/
+├── elevenlabs_tts.json           # Text-to-Speech Plugin
+├── flux_image_generator.json     # Bildgenerierung
+├── flux_pixar_generator.json     # Pixar-Style Bilder
+├── google_keyword_generator.json # Keyword Research (auto-exportiert)
+└── templates/                    # Vorlagen (werden ignoriert)
+    └── example_plugin.json
+```
+
+#### ⚠️ **Wichtige Hinweise**
+
+- **Datenintegrität**: Bestehende Plugin-Konfigurationen werden nie überschrieben
+- **Backup-Sicherheit**: Plugin-Änderungen werden in den automatischen Backups gespeichert
+- **Fehlerbehandlung**: Fehlerhafte Plugins werden geloggt, aber stoppen nicht den Server
+- **Admin-Audit**: Alle Plugin-Synchronisationen werden im Audit-Log erfasst
+
 ## Verwendung
 
 ### Development

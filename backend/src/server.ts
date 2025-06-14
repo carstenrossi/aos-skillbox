@@ -105,6 +105,7 @@ import { runMigrations } from './database/migrations';
 import { getUserModel } from './models/UserSQLite';
 import { getAssistantModel } from './models/AssistantSQLite';
 import { getBackupService } from './services/backupService';
+import { getPluginMigrationService } from './services/pluginMigrationService';
 
 // Database initialization and migration
 const initializeDatabase = async (): Promise<void> => {
@@ -126,6 +127,10 @@ const initializeDatabase = async (): Promise<void> => {
     // Create default assistants if database is empty
     const assistantModel = getAssistantModel();
     await assistantModel.createDefaultAssistants();
+    
+    // Migrate plugins from backend/plugins/ directory
+    const pluginMigrationService = getPluginMigrationService();
+    await pluginMigrationService.runMigration();
     
     // Initialize backup service
     const backupService = getBackupService();
