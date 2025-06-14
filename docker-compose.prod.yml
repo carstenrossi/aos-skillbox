@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   skillbox-backend:
-    image: ghcr.io/carstenrossi/skillbox-backend:20250614-220231
+    image: ghcr.io/carstenrossi/skillbox-backend:20250614-220751
     ports:
       - "3001:3001"  # Backend muss einen Port exposen für Reverse Proxy
     environment:
@@ -21,7 +21,7 @@ services:
       - skillbox-network
 
   skillbox-frontend:
-    image: ghcr.io/carstenrossi/skillbox-frontend:20250614-220231
+    image: ghcr.io/carstenrossi/skillbox-frontend:20250614-220751
     ports:
       - "3000:80"
     environment:
