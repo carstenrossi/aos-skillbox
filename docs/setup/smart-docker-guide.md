@@ -90,6 +90,7 @@ JWT_SECRET=your-secret CORS_ORIGIN=https://your-domain.com docker-compose -f doc
 - Backend: Interner Port 3001 (nur Container-Netzwerk)
 - API-Calls: Relative URLs (nginx proxy)
 - CORS: Konfigurierbar via ENV
+- Tags: Timestamp-basierte Versionierung (z.B. 20250614-165511)
 - Database: `/app/data/skillbox.db` (Docker Volume)
 
 ## Environment-Variablen

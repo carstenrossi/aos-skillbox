@@ -85,7 +85,7 @@ version: '3.8'
 
 services:
   skillbox-backend:
-    image: ghcr.io/carsten/skillbox-backend:latest
+    image: ghcr.io/carstenrossi/skillbox-backend:20250614-165511
     ports:
       - "3001:3001"
     environment:
@@ -99,7 +99,7 @@ services:
     user: "1001:1001"
 
   skillbox-frontend:
-    image: ghcr.io/carsten/skillbox-frontend:latest
+    image: ghcr.io/carstenrossi/skillbox-frontend:20250614-165511
     ports:
       - "3000:80"
     depends_on:
@@ -124,7 +124,7 @@ JWT_SECRET=super-sicherer-jwt-secret-für-backend-auth
 
 Falls die Images private sind:
 - Registry: `ghcr.io`
-- Username: `carsten`
+- Username: `carstenrossi`
 - Password: `dein-github-token`
 
 ### Schritt 4: Deployment starten
@@ -152,7 +152,7 @@ Nach erfolgreichem Deployment und Assistant-Konfiguration erhalten Tester:
 
 ```
 🚀 Skillbox Test-Umgebung
-URL: https://skillbox-xxx.elestio.app
+URL: https://skillboxdocker2-u31060.vm.elestio.app
 
 Login-Daten:
 👑 Admin:   admin / admin123
@@ -225,7 +225,7 @@ chmod +x scripts/docker-setup.sh
 
 ### Problem: "Image not found" in Elestio
 - Images müssen public sein oder Registry-Credentials setzen
-- Correct image names: `ghcr.io/carsten/skillbox-backend:latest`
+- Correct image names: `ghcr.io/carstenrossi/skillbox-backend:20250614-165511`
 
 ### Problem: "Assistants antworten nicht"
 - Prüfe Assistant JWT-Tokens im Admin-Panel

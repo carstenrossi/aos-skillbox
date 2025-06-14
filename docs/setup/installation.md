@@ -24,7 +24,7 @@ Source Code → Docker Dev → Docker Production (Elestio)
 - **Vorteil:** Keine Port-Konflikte mit lokaler Entwicklung
 
 ### 3. **Docker Production** (Elestio Cloud)
-- **URL:** https://skillboxdocker-u31060.vm.elestio.app
+- **URL:** https://skillboxdocker2-u31060.vm.elestio.app
 - **Verwendung:** Finaler Produktionstest und Live-System
 - **Registry:** GitHub Container Registry (ghcr.io)
 
@@ -66,7 +66,7 @@ docker-compose -f docker-compose.dev.yml up -d
 ./scripts/build-smart.sh -e production -p
 
 # ✅ Automatisch: AMD64 + ARM64 Support für maximum compatibility
-# ✅ Automatisch: latest-production Tags
+# ✅ Automatisch: Timestamp-basierte Tags (z.B. 20250614-165511)
 # ✅ Automatisch: Multi-Platform Manifest Verification 
 # ✅ Automatisch: Manifest-Schutz (keine Überschreibung)
 ```
@@ -134,7 +134,7 @@ CORS_ORIGIN=https://skillboxdocker2-u31060.vm.elestio.app,http://localhost:3000,
 - **Smart Build Script** für konsistente Builds verwenden
 - **API Response Format** standardisiert verwenden
 - **Git Commits** vor Docker Builds machen
-- **latest-production Tags** in docker-compose.prod.yml verwenden
+- **Timestamp-basierte Tags** in docker-compose.prod.yml verwenden
 
 ### ❌ DON'Ts:
 - Niemals direkt in Docker-Containern entwickeln

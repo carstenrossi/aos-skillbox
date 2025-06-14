@@ -39,7 +39,7 @@ docker-compose -f docker-compose.dev.yml up -d
 ./scripts/build-smart.sh -e production -p
 
 # ✅ Automatisch: AMD64 + ARM64 Support
-# ✅ Automatisch: latest-production Tags
+# ✅ Automatisch: Timestamp-basierte Tags (z.B. 20250614-165511)
 # ✅ Automatisch: Multi-Platform Manifest Verification
 ```
 
