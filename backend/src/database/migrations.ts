@@ -386,6 +386,50 @@ export const migrations: Migration[] = [
       DROP INDEX IF EXISTS idx_plugin_executions_plugin_id;
       DROP TABLE IF EXISTS plugin_executions;
     `
+  },
+  {
+    version: 13,
+    name: 'add_context_limit_to_assistants',
+    up: `
+      ALTER TABLE assistants ADD COLUMN context_limit INTEGER DEFAULT 32000;
+      
+      -- Create index for context_limit queries
+      CREATE INDEX IF NOT EXISTS idx_assistants_context_limit ON assistants(context_limit);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_assistants_context_limit;
+      
+      -- Note: SQLite doesn't support DROP COLUMN, so we recreate the table
+      CREATE TABLE assistants_backup AS SELECT 
+        id, name, display_name, description, icon, api_url, jwt_token, 
+        model_name, system_prompt, is_active, created_at, updated_at 
+      FROM assistants;
+      
+      DROP TABLE assistants;
+      
+      CREATE TABLE assistants (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        display_name TEXT,
+        description TEXT,
+        icon TEXT,
+        api_url TEXT NOT NULL,
+        jwt_token TEXT,
+        model_name TEXT,
+        system_prompt TEXT,
+        is_active BOOLEAN DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      
+      INSERT INTO assistants SELECT * FROM assistants_backup;
+      DROP TABLE assistants_backup;
+      
+      -- Recreate indexes
+      CREATE INDEX IF NOT EXISTS idx_assistants_name ON assistants(name);
+      CREATE INDEX IF NOT EXISTS idx_assistants_created_at ON assistants(created_at);
+      CREATE INDEX IF NOT EXISTS idx_assistants_is_active ON assistants(is_active);
+    `
   }
 ];
 

@@ -9,6 +9,68 @@ import { getChatPluginIntegration, ChatMessage as PluginChatMessage } from '../s
 const router = express.Router();
 const chatPluginIntegration = getChatPluginIntegration();
 
+// 📊 TOKEN MANAGEMENT FUNCTIONS
+/**
+ * Estimates token count for text content using simple heuristic
+ * @param text - Text content to estimate tokens for
+ * @returns Estimated token count
+ */
+function estimateTokens(text: string): number {
+  // Heuristic: ~4 characters per token for German/English text
+  return Math.ceil(text.length / 4);
+}
+
+/**
+ * Selects conversation history messages within token limits
+ * @param conversationHistory - Array of messages from the conversation
+ * @param assistant - Assistant object with context_limit
+ * @returns Array of selected messages that fit within token limits
+ */
+function selectConversationHistory(
+  conversationHistory: any[], 
+  assistant: any
+): any[] {
+  const contextLimit = assistant.context_limit || 32000;  // Default 32k tokens
+  
+  // Token reservations for various parts of the request
+  const RESERVED_TOKENS = {
+    system: 1200,     // System prompt + plugin definitions
+    response: 4000,   // Response generation space
+    buffer: 800       // Safety buffer
+  };
+  
+  const AVAILABLE_FOR_HISTORY = contextLimit - 
+    Object.values(RESERVED_TOKENS).reduce((a, b) => a + b, 0);
+  
+  console.log(`📊 Assistant: ${assistant.display_name}, Context: ${contextLimit}, Available for history: ${AVAILABLE_FOR_HISTORY}`);
+  
+  let totalTokens = 0;
+  const selectedMessages: any[] = [];
+  
+  // Select messages backwards (newest first) to prioritize recent context
+  for (let i = conversationHistory.length - 1; i >= 0; i--) {
+    const message = conversationHistory[i];
+    const messageTokens = estimateTokens(message.content) + 15; // +15 for message structure overhead
+    
+    if (totalTokens + messageTokens <= AVAILABLE_FOR_HISTORY) {
+      selectedMessages.unshift(message); // Add to beginning to maintain chronological order
+      totalTokens += messageTokens;
+    } else {
+      // Stop adding messages when we hit the limit
+      break;
+    }
+  }
+  
+  // Ensure we have at least the most recent message if history exists
+  if (selectedMessages.length === 0 && conversationHistory.length > 0) {
+    selectedMessages.push(conversationHistory[conversationHistory.length - 1]);
+    console.log(`⚠️ Only including most recent message due to token constraints`);
+  }
+  
+  console.log(`✅ Selected ${selectedMessages.length}/${conversationHistory.length} messages (~${totalTokens} tokens)`);
+  return selectedMessages;
+}
+
 // GET /api/conversations - Get user's conversations
 router.get('/', authenticateToken as any, async (req: Request, res: Response) => {
   try {
@@ -570,6 +632,26 @@ Wenn der Benutzer etwas anderes fragt, antworte normal.`;
       console.error('Error loading plugins for system prompt:', pluginError);
     }
     
+    // 📚 LOAD CONVERSATION HISTORY
+    console.log(`📚 Loading conversation history for conversation: ${id}`);
+    const conversationHistory = await messageModel.findByConversationId(id, {
+      order: 'asc' // Chronological order (oldest first)
+    });
+    
+    // Exclude the current user message we just created (it would be the last one)
+    const historyWithoutCurrentMessage = conversationHistory.filter(msg => msg.id !== userMessage.id);
+    
+    // Select appropriate history based on token limits
+    const selectedHistory = selectConversationHistory(historyWithoutCurrentMessage, assistant);
+    
+    // Convert messages to OpenAI format
+    const historyMessages = selectedHistory.map(msg => ({
+      role: msg.role,
+      content: msg.content
+    }));
+    
+    console.log(`📖 Including ${historyMessages.length} history messages in context`);
+
     // Prepare AI request
     const requestData = {
       model: assistant.model_name || assistant.name.toLowerCase().replace(/\s+/g, '-'),
@@ -578,6 +660,7 @@ Wenn der Benutzer etwas anderes fragt, antworte normal.`;
           role: 'system',
           content: enhancedSystemPrompt
         },
+        ...historyMessages,  // 🆕 Include conversation history
         {
           role: 'user',
           content: content

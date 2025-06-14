@@ -11,6 +11,7 @@ export interface Assistant {
   model_name?: string;
   system_prompt?: string;
   is_active?: boolean;
+  context_limit?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -25,6 +26,7 @@ export interface CreateAssistantRequest {
   model_name?: string;
   system_prompt?: string;
   is_active?: boolean;
+  context_limit?: number;
 }
 
 export interface UpdateAssistantRequest {
@@ -37,6 +39,7 @@ export interface UpdateAssistantRequest {
   model_name?: string;
   system_prompt?: string;
   is_active?: boolean;
+  context_limit?: number;
 }
 
 export class AssistantModelSQLite {
@@ -63,7 +66,7 @@ export class AssistantModelSQLite {
 
   async findById(id: string): Promise<Assistant | null> {
     const assistant = await this.db.get<Assistant>(
-      'SELECT id, name, display_name, description, icon, api_url, jwt_token, model_name, system_prompt, is_active, created_at, updated_at FROM assistants WHERE id = ?',
+      'SELECT id, name, display_name, description, icon, api_url, jwt_token, model_name, system_prompt, is_active, context_limit, created_at, updated_at FROM assistants WHERE id = ?',
       [id]
     );
     
@@ -80,7 +83,7 @@ export class AssistantModelSQLite {
 
   async findByName(name: string): Promise<Assistant | null> {
     const assistant = await this.db.get<Assistant>(
-      'SELECT id, name, display_name, description, icon, api_url, jwt_token, model_name, system_prompt, is_active, created_at, updated_at FROM assistants WHERE name = ?',
+      'SELECT id, name, display_name, description, icon, api_url, jwt_token, model_name, system_prompt, is_active, context_limit, created_at, updated_at FROM assistants WHERE name = ?',
       [name]
     );
     
@@ -100,7 +103,7 @@ export class AssistantModelSQLite {
     const now = new Date().toISOString();
     
     await this.db.run(
-      'INSERT INTO assistants (id, name, display_name, description, icon, api_url, jwt_token, model_name, system_prompt, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO assistants (id, name, display_name, description, icon, api_url, jwt_token, model_name, system_prompt, is_active, context_limit, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         id, 
         data.name, 
@@ -111,7 +114,8 @@ export class AssistantModelSQLite {
         data.jwt_token || null, 
         data.model_name || null, 
         data.system_prompt || null, 
-        data.is_active !== false ? 1 : 0, 
+        data.is_active !== false ? 1 : 0,
+        data.context_limit || 32000,  // 🆕 Default 32k Tokens
         now, 
         now
       ]
@@ -178,6 +182,11 @@ export class AssistantModelSQLite {
     if (data.is_active !== undefined) {
       updates.push('is_active = ?');
       params.push(data.is_active ? 1 : 0);
+    }
+    
+    if (data.context_limit !== undefined) {
+      updates.push('context_limit = ?');
+      params.push(data.context_limit);
     }
     
     updates.push('updated_at = ?');

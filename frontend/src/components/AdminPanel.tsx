@@ -56,6 +56,7 @@ interface Assistant {
   model_name: string;
   system_prompt: string;
   is_active: boolean;
+  context_limit?: number;  // 🆕 Neues Feld für Token-Limit
   created_at: string;
   updated_at: string;
 }
@@ -137,6 +138,7 @@ const mockAssistants: Assistant[] = [
     model_name: 'narrative-coach',
     system_prompt: 'Du bist ein Narrative Assistant, der bei Storytelling, Kommunikation und narrativer Entwicklung hilft.',
     is_active: true,
+    context_limit: 1000,  // 🆕 Neues Feld für Token-Limit
     created_at: '2024-01-10T08:00:00Z',
     updated_at: '2024-01-15T10:30:00Z'
   },
@@ -151,6 +153,7 @@ const mockAssistants: Assistant[] = [
     model_name: 'csrd-coach',
     system_prompt: 'Du bist ein CSRD-Experte und hilfst bei der Corporate Sustainability Reporting Directive.',
     is_active: true,
+    context_limit: 1000,  // 🆕 Neues Feld für Token-Limit
     created_at: '2024-01-11T09:00:00Z',
     updated_at: '2024-01-16T14:20:00Z'
   },
@@ -165,6 +168,7 @@ const mockAssistants: Assistant[] = [
     model_name: 'adoption-coach',
     system_prompt: 'Du bist ein Adoption Coach, der bei Veränderungsprozessen und der Einführung neuer Systeme hilft.',
     is_active: true,
+    context_limit: 1000,  // 🆕 Neues Feld für Token-Limit
     created_at: '2024-01-12T10:00:00Z',
     updated_at: '2024-01-17T16:45:00Z'
   },
@@ -1602,6 +1606,34 @@ const AssistantModal: React.FC<AssistantModalProps> = ({
                 placeholder="z.B. narrative-coach"
                 required
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Context Limit (Tokens)
+              </label>
+              <input
+                type="number"
+                value={formData.context_limit || 32000}
+                onChange={(e) => setFormData(prev => ({ 
+                  ...prev, 
+                  context_limit: parseInt(e.target.value) || 32000 
+                }))}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="32000"
+                min="8000"
+                max="1000000"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Standard: 32.000 | GPT-4 Turbo: 128.000 | Claude: 200.000
+              </p>
+            </div>
+
+            <div>
+              {/* Spacer div for grid alignment */}
             </div>
           </div>
 

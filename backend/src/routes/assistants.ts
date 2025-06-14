@@ -78,7 +78,8 @@ router.post('/', async (req, res) => {
       jwt_token, 
       model_name, 
       system_prompt, 
-      is_active 
+      is_active,
+      context_limit  // 🆕 Neues Feld für Token-Limit
     } = req.body;
     
     if (!name || !api_url) {
@@ -122,7 +123,8 @@ router.post('/', async (req, res) => {
       jwt_token: jwt_token || '',
       model_name: model_name || name.toLowerCase().replace(/\s+/g, '-'),
       system_prompt: system_prompt || 'You are a helpful AI Assistant. Answer in the language the user uses to query you.',
-      is_active: is_active !== undefined ? is_active : true
+      is_active: is_active !== undefined ? is_active : true,
+      context_limit: context_limit || 32000  // 🆕 Default 32k Tokens
     });
     
     console.log(`✅ Assistant created successfully with ID: ${assistant.id}`);
@@ -160,7 +162,8 @@ router.put('/:id', async (req, res) => {
       jwt_token, 
       model_name, 
       system_prompt, 
-      is_active 
+      is_active,
+      context_limit  // 🆕 Neues Feld für Token-Limit
     } = req.body;
     
     console.log(`🔧 Updating assistant ${req.params.id} with data:`, {
@@ -188,6 +191,7 @@ router.put('/:id', async (req, res) => {
     if (model_name !== undefined) updateData.model_name = model_name;
     if (system_prompt !== undefined) updateData.system_prompt = system_prompt;
     if (is_active !== undefined) updateData.is_active = is_active;
+    if (context_limit !== undefined) updateData.context_limit = context_limit;  // 🆕 Neues Feld
     
     const assistant = await assistantModel.update(req.params.id, updateData);
     
