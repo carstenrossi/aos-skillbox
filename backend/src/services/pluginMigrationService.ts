@@ -299,7 +299,7 @@ export class PluginMigrationService {
       plugin_type: pluginData.plugin_type || 'api_tool',
       runtime_type: pluginData.runtime_type || 'api_call',
       config_schema: pluginData.config_schema,
-      manifest: pluginData,
+      manifest: pluginData.manifest,  // ✅ FIX: Nur das manifest-Unterobjekt übergeben
       is_public: true
     });
   }
