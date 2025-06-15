@@ -145,39 +145,37 @@ const initializeDatabase = async (): Promise<void> => {
     // Initialize Settings Service with database connection
     settingsService.setDatabase(database.instance!);
     
+    // Initialize File Upload System
+    logger.info('🔧 Setting up File Upload System...');
+    
     // Initialize File Service
     logger.info('📁 Initializing File Service...');
     fileService.initialize();
     logger.info('✅ File Service initialized');
     
-    // Try to load S3 configuration from database
-    logger.info('💡 S3 Service: Will try to load from database after initialization');
-    setTimeout(async () => {
-      try {
-        logger.info('🔄 S3 Service: Loading configuration from database...');
-        const loaded = await s3Service.loadFromDatabase();
-        
-        if (loaded) {
-          logger.info('✅ S3 Service: Configuration loaded from database successfully');
-        } else {
-          logger.info('💡 S3 Service: No complete configuration found in database');
-        }
-        
-        // Process any pending text extraction files after S3 is ready
-        logger.info('🔄 Starting text extraction background processor...');
-        setTimeout(async () => {
-          try {
-            await textExtractionProcessor.processPendingFiles();
-            logger.info('🔍 Checking for pending text extraction files...');
-          } catch (error) {
-            logger.error('🚨 Failed to process pending text extraction files:', error);
-          }
-        }, 2000); // Wait 2 more seconds for S3 to be fully ready
-        
-      } catch (error) {
-        logger.error('🚨 Failed to load S3 configuration from database:', error);
+    // Initialize S3 Service
+    logger.info('☁️ Initializing S3 Service...');
+    try {
+      const loaded = await s3Service.loadFromDatabase();
+      if (loaded) {
+        logger.info('✅ S3 Service: Configuration loaded from database successfully');
+      } else {
+        logger.info('💡 S3 Service: No complete configuration found in database, using environment variables');
       }
-    }, 1000); // Wait 1 second to ensure everything is initialized
+    } catch (error) {
+      logger.error('🚨 Failed to load S3 configuration from database:', error);
+    }
+    
+    // Initialize Text Extraction Processor
+    logger.info('🔍 Initializing Text Extraction Processor...');
+    try {
+      await textExtractionProcessor.processPendingFiles();
+      logger.info('✅ Text Extraction Processor initialized');
+    } catch (error) {
+      logger.error('🚨 Failed to initialize Text Extraction Processor:', error);
+    }
+    
+    logger.info('✅ File Upload System ready!');
     
     logger.info('✅ Database initialization completed');
   } catch (error) {
