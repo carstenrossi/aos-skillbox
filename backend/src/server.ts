@@ -146,17 +146,29 @@ const initializeDatabase = async (): Promise<void> => {
     settingsService.setDatabase(database.instance!);
     
     // Initialize File Service
+    logger.info('📁 Initializing File Service...');
     fileService.initialize();
+    logger.info('✅ File Service initialized');
     
     // Try to load S3 configuration from database
+    logger.info('💡 S3 Service: Will try to load from database after initialization');
     setTimeout(async () => {
       try {
-        await s3Service.loadFromDatabase();
+        logger.info('🔄 S3 Service: Loading configuration from database...');
+        const loaded = await s3Service.loadFromDatabase();
+        
+        if (loaded) {
+          logger.info('✅ S3 Service: Configuration loaded from database successfully');
+        } else {
+          logger.info('💡 S3 Service: No complete configuration found in database');
+        }
         
         // Process any pending text extraction files after S3 is ready
+        logger.info('🔄 Starting text extraction background processor...');
         setTimeout(async () => {
           try {
             await textExtractionProcessor.processPendingFiles();
+            logger.info('🔍 Checking for pending text extraction files...');
           } catch (error) {
             logger.error('🚨 Failed to process pending text extraction files:', error);
           }
