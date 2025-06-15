@@ -11,6 +11,9 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# Elestio production file with credentials (DO NOT COMMIT)
+docker-compose.prod.elestio.yml
+
 # Build outputs
 **/dist/
 **/build/
