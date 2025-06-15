@@ -12,6 +12,12 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - CORS_ORIGIN=https://skillboxdocker2-u31060.vm.elestio.app,http://localhost:3000,http://localhost:3003
       - CORS_CREDENTIALS=true
+      # AWS S3 Configuration for File Upload System
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=eu-north-1
+      - AWS_S3_BUCKET=skillbox-master
+      - S3_PUBLIC_URL_PREFIX=https://skillbox-master.s3.eu-north-1.amazonaws.com
     volumes:
       - backend_data:/app/data
       - backend_logs:/app/logs
