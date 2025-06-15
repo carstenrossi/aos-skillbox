@@ -25,10 +25,9 @@ WORKDIR /app
 COPY backend/package*.json ./
 RUN npm install --only=production && npm cache clean --force
 
-# Copy built application and config
+# Copy built application and all required source files
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/src/models ./src/models
-COPY --from=builder /app/src/config ./src/config
+COPY --from=builder /app/src ./src
 
 # Copy plugin files for automatic migration
 COPY --from=builder /app/plugins ./plugins
