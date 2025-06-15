@@ -167,11 +167,18 @@ docker-compose -f docker-compose.dev.yml up -d
 ### Production Build
 ```bash
 # Production Images bauen und pushen
-./scripts/build-smart.sh -e production -p
+./scripts/build-smart.sh -e production -p --multi-platform
 
 # docker-compose.prod.yml aktualisieren
-# Deploy to Elestio
+# Deploy to Elestio mit docker-compose.prod.elestio.yml
 ```
+
+### ⚠️ Wichtige Deployment-Hinweise
+- **AWS S3 Integration**: File Upload System benötigt AWS Credentials
+- **Zwei Docker Compose Dateien**: 
+  - `docker-compose.prod.yml` - Für GitHub (sichere Platzhalter)
+  - `docker-compose.prod.elestio.yml` - Für Elestio (eingebettete Credentials)
+- **Sicherheit**: Elestio-Datei ist in `.gitignore` geschützt
 
 ## 📁 **Projektstruktur**
 
