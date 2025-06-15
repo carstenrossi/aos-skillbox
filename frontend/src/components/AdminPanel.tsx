@@ -27,7 +27,9 @@ import {
   Image,
   Video,
   Music,
-  Zap
+  Zap,
+  Cloud,
+  Database
 } from 'lucide-react';
 import { ApiService } from '../services/api';
 import { Plugin, PluginConfig, AssistantPlugin, PluginExecution } from '../types';
@@ -226,6 +228,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onAssistantChange, onClo
   const [showAssistantPluginModal, setShowAssistantPluginModal] = useState(false);
   const [selectedAssistant, setSelectedAssistant] = useState<Assistant | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  
+  // S3 Configuration State
+  const [s3Config, setS3Config] = useState({
+    region: 'eu-north-1',
+    bucket: 'skillbox-master',
+    accessKeyId: '',
+    secretAccessKey: '',
+    publicUrlPrefix: 'https://skillbox-master.s3.eu-north-1.amazonaws.com'
+  });
+  const [s3ConfigLoading, setS3ConfigLoading] = useState(false);
+  const [s3Status, setS3Status] = useState<'unknown' | 'connected' | 'error'>('unknown');
 
   useEffect(() => {
     // Load data from backend instead of using static mock data
@@ -665,6 +678,62 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onAssistantChange, onClo
     return colors[type as keyof typeof colors] || colors.utility;
   };
 
+  // S3 Configuration Functions
+  const handleS3ConfigSave = async () => {
+    setS3ConfigLoading(true);
+    try {
+      const response = await ApiService.updateS3Config(s3Config);
+      if (response.success) {
+        setS3Status('connected');
+        alert('S3-Konfiguration erfolgreich gespeichert!');
+      } else {
+        throw new Error('Unbekannter Fehler');
+      }
+    } catch (error) {
+      console.error('Error saving S3 config:', error);
+      setS3Status('error');
+      alert('Fehler beim Speichern der S3-Konfiguration. Bitte überprüfen Sie Ihre Eingaben.');
+    } finally {
+      setS3ConfigLoading(false);
+    }
+  };
+
+  const handleS3ConnectionTest = async () => {
+    setS3ConfigLoading(true);
+    try {
+      const response = await ApiService.testS3Connection();
+      if (response.success) {
+        setS3Status('connected');
+        alert('S3-Verbindung erfolgreich getestet!');
+      } else {
+        throw new Error('Verbindungstest fehlgeschlagen');
+      }
+    } catch (error) {
+      console.error('Error testing S3 connection:', error);
+      setS3Status('error');
+      alert('S3-Verbindungstest fehlgeschlagen. Bitte überprüfen Sie Ihre Konfiguration.');
+    } finally {
+      setS3ConfigLoading(false);
+    }
+  };
+
+  const loadS3Config = async () => {
+    try {
+      const response = await ApiService.getS3Config();
+      if (response.success && response.data) {
+        setS3Config(response.data);
+        setS3Status(response.data.accessKeyId ? 'connected' : 'unknown');
+      }
+    } catch (error) {
+      console.error('Error loading S3 config:', error);
+    }
+  };
+
+  // Load S3 config on component mount
+  useEffect(() => {
+    loadS3Config();
+  }, []);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -745,6 +814,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onAssistantChange, onClo
             { id: 'assistant-plugins', label: 'Assistant-Plugins', icon: Settings2 },
             { id: 'plugins', label: 'Plugins', icon: Puzzle },
             { id: 'tools', label: 'Tools', icon: Wrench },
+            { id: 's3-storage', label: 'S3 Storage', icon: Cloud },
             { id: 'analytics', label: 'Analytics', icon: BarChart3 },
             { id: 'system', label: 'System Status', icon: Server },
             { id: 'settings', label: 'Einstellungen', icon: Settings }
@@ -1343,6 +1413,155 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onAssistantChange, onClo
                 <span className="font-medium">Authentifizierung</span>
               </div>
               <span className="text-green-600 font-medium">Aktiv</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 's3-storage' && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">S3 Storage Konfiguration</h2>
+                <p className="text-gray-600">Konfigurieren Sie AWS S3 für File-Uploads</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  s3Status === 'connected' ? 'bg-green-100 text-green-800' :
+                  s3Status === 'error' ? 'bg-red-100 text-red-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {s3Status === 'connected' ? '✅ Verbunden' : 
+                   s3Status === 'error' ? '❌ Fehler' : '⚠️ Nicht konfiguriert'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  AWS Region
+                </label>
+                <input
+                  type="text"
+                  value={s3Config.region}
+                  onChange={(e) => setS3Config(prev => ({ ...prev, region: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="eu-north-1"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  S3 Bucket Name
+                </label>
+                <input
+                  type="text"
+                  value={s3Config.bucket}
+                  onChange={(e) => setS3Config(prev => ({ ...prev, bucket: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="skillbox-master"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  AWS Access Key ID
+                </label>
+                <input
+                  type="text"
+                  value={s3Config.accessKeyId}
+                  onChange={(e) => setS3Config(prev => ({ ...prev, accessKeyId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="AKIA..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  AWS Secret Access Key
+                </label>
+                <input
+                  type="password"
+                  value={s3Config.secretAccessKey}
+                  onChange={(e) => setS3Config(prev => ({ ...prev, secretAccessKey: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="••••••••••••••••••••••••••••••••••••••••"
+                />
+              </div>
+
+              <div className="lg:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Public URL Prefix
+                </label>
+                <input
+                  type="url"
+                  value={s3Config.publicUrlPrefix}
+                  onChange={(e) => setS3Config(prev => ({ ...prev, publicUrlPrefix: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="https://skillbox-master.s3.eu-north-1.amazonaws.com"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-4 pt-4 border-t border-gray-200">
+              <button
+                onClick={handleS3ConfigSave}
+                disabled={s3ConfigLoading}
+                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center space-x-2"
+              >
+                {s3ConfigLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Speichere...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>Konfiguration speichern</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={handleS3ConnectionTest}
+                disabled={s3ConfigLoading}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center space-x-2"
+              >
+                {s3ConfigLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Teste...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Verbindung testen</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start space-x-3">
+                <Database className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div>
+                  <h3 className="font-medium text-blue-900">File-Upload-System</h3>
+                  <p className="text-sm text-blue-800 mt-1">
+                    Nach der S3-Konfiguration können Benutzer Dateien in Chat-Gesprächen hochladen. 
+                    Text-basierte Dateien (PDF, DOC, etc.) werden für LLM-Kontext verarbeitet, 
+                    während Binärdateien (Bilder, Audio, Video) als URLs bereitgestellt werden.
+                  </p>
+                  <ul className="text-sm text-blue-700 mt-2 space-y-1">
+                    <li>• Unterstützte Text-Formate: PDF, DOC, DOCX, TXT, MD, XLS, XLSX</li>
+                    <li>• Unterstützte Binär-Formate: PNG, JPG, MP3, WAV, MP4, MOV</li>
+                    <li>• Namenskonvention: skillbox-YYYY-MM-DD-filename-uuid.ext</li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
         </div>

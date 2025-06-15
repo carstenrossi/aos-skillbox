@@ -74,6 +74,68 @@ export const authenticateToken = async (req: AuthenticatedRequest, res: Response
 };
 
 /**
+ * Middleware to authenticate JWT tokens (compatible with standard Express Request)
+ */
+export const authenticateTokenStandard = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const authHeader = (req.headers as any).authorization as string | undefined;
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      res.status(401).json({
+        success: false,
+        error: {
+          message: 'Access token required',
+          code: 'MISSING_TOKEN'
+        },
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    // Verify token
+    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    
+    // Check if user still exists and is active
+    const user = await getUserModel().findById(decoded.userId);
+    if (!user || !user.is_active) {
+      res.status(401).json({
+        success: false,
+        error: {
+          message: 'User not found or inactive',
+          code: 'USER_INACTIVE'
+        },
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    // Add user to request object
+    (req as any).user = {
+      userId: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      isAdmin: user.is_admin,
+      iat: decoded.iat,
+      exp: decoded.exp
+    };
+
+    next();
+  } catch (error: any) {
+    res.status(401).json({
+      success: false,
+      error: {
+        message: 'Invalid or expired token',
+        code: 'INVALID_TOKEN',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+
+/**
  * Middleware that requires a specific role or higher
  */
 export const requireRole = (requiredRole: UserRole) => {

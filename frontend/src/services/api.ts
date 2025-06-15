@@ -44,11 +44,15 @@ async function apiRequest<T>(
   const baseUrl = useAssistantOS ? API_CONFIG.assistantOSUrl : API_CONFIG.baseUrl;
   const fullUrl = `${baseUrl}${url}`;
   
-  // Default headers
+  // Default headers - only set Content-Type for JSON requests
   const defaultHeaders: HeadersInit = {
-    'Content-Type': 'application/json',
     'Accept': 'application/json',
   };
+
+  // Only set Content-Type to JSON if body is not FormData
+  if (options.body && !(options.body instanceof FormData)) {
+    defaultHeaders['Content-Type'] = 'application/json';
+  }
 
   // Add authentication token if available
   const token = localStorage.getItem('token');
@@ -236,6 +240,27 @@ export class ApiService {
       }
     }
 
+    // Upload files first if any are provided
+    if (files && files.length > 0) {
+      try {
+        console.log(`📎 Uploading ${files.length} files before sending message...`);
+        const uploadPromises = files.map(file => this.uploadFile(file, activeConversationId));
+        const uploadResults = await Promise.all(uploadPromises);
+        
+        // Log successful uploads
+        uploadResults.forEach((result, index) => {
+          if (result.success) {
+            console.log(`✅ File uploaded: ${files[index].name} -> ${result.data?.filename}`);
+          } else {
+            console.error(`❌ File upload failed: ${files[index].name}`);
+          }
+        });
+      } catch (error) {
+        console.error('Error uploading files:', error);
+        throw new ApiError('Failed to upload files');
+      }
+    }
+
     // Backend expects: { content }
     const requestBody = {
       content: message
@@ -310,6 +335,27 @@ export class ApiService {
 
   // Simplified message sending for useChat.tsx compatibility
   static async sendMessage(conversationId: string, content: string, files?: File[]) {
+    // Upload files first if any are provided
+    if (files && files.length > 0) {
+      try {
+        console.log(`📎 Uploading ${files.length} files before sending message...`);
+        const uploadPromises = files.map(file => this.uploadFile(file, conversationId));
+        const uploadResults = await Promise.all(uploadPromises);
+        
+        // Log successful uploads
+        uploadResults.forEach((result, index) => {
+          if (result.success) {
+            console.log(`✅ File uploaded: ${files[index].name} -> ${result.data?.filename}`);
+          } else {
+            console.error(`❌ File upload failed: ${files[index].name}`);
+          }
+        });
+      } catch (error) {
+        console.error('Error uploading files:', error);
+        throw new ApiError('Failed to upload files');
+      }
+    }
+
     const requestBody = {
       content
     };
@@ -531,6 +577,36 @@ export class ApiService {
     if (params.toString()) url += `?${params.toString()}`;
     
     return apiRequest<ApiResponse<PluginExecution[]>>(url);
+  }
+
+  // S3 Configuration endpoints
+  static async getS3Config() {
+    return apiRequest<ApiResponse<{
+      region: string;
+      bucket: string;
+      accessKeyId: string;
+      secretAccessKey: string;
+      publicUrlPrefix: string;
+    }>>('/api/admin/s3-config');
+  }
+
+  static async updateS3Config(config: {
+    region: string;
+    bucket: string;
+    accessKeyId: string;
+    secretAccessKey: string;
+    publicUrlPrefix: string;
+  }) {
+    return apiRequest<ApiResponse<any>>('/api/admin/s3-config', {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    });
+  }
+
+  static async testS3Connection() {
+    return apiRequest<ApiResponse<{ status: string; message: string }>>('/api/admin/s3-config/test', {
+      method: 'POST',
+    });
   }
 }
 

@@ -25,6 +25,7 @@ import adminRoutes from './routes/admin';
 import { toolsRouter } from './routes/tools';
 import pluginRoutes from './routes/plugins';
 import { pluginExecutionRouter } from './routes/pluginExecution';
+import fileRoutes from './routes/files';
 
 // Load environment variables
 dotenv.config();
@@ -94,6 +95,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/tools', toolsRouter);
 app.use('/api/plugins', pluginRoutes);
 app.use('/api/plugin-execution', pluginExecutionRouter);
+app.use('/api/files', fileRoutes);
 
 // Error handling middleware
 app.use(notFoundHandler);
@@ -106,6 +108,10 @@ import { getUserModel } from './models/UserSQLite';
 import { getAssistantModel } from './models/AssistantSQLite';
 import { getBackupService } from './services/backupService';
 import { getPluginMigrationService } from './services/pluginMigrationService';
+import { settingsService } from './services/settingsService';
+import { s3Service } from './services/s3Service';
+import { fileService } from './services/fileService';
+import { textExtractionProcessor } from './services/textExtractionProcessor';
 
 // Database initialization and migration
 const initializeDatabase = async (): Promise<void> => {
@@ -136,6 +142,31 @@ const initializeDatabase = async (): Promise<void> => {
     const backupService = getBackupService();
     await backupService.initialize();
     
+    // Initialize Settings Service with database connection
+    settingsService.setDatabase(database.instance!);
+    
+    // Initialize File Service
+    fileService.initialize();
+    
+    // Try to load S3 configuration from database
+    setTimeout(async () => {
+      try {
+        await s3Service.loadFromDatabase();
+        
+        // Process any pending text extraction files after S3 is ready
+        setTimeout(async () => {
+          try {
+            await textExtractionProcessor.processPendingFiles();
+          } catch (error) {
+            logger.error('🚨 Failed to process pending text extraction files:', error);
+          }
+        }, 2000); // Wait 2 more seconds for S3 to be fully ready
+        
+      } catch (error) {
+        logger.error('🚨 Failed to load S3 configuration from database:', error);
+      }
+    }, 1000); // Wait 1 second to ensure everything is initialized
+    
     logger.info('✅ Database initialization completed');
   } catch (error) {
     logger.error('🚨 Error connecting to database:', error);
@@ -150,6 +181,9 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
   // Stop backup service
   const backupService = getBackupService();
   backupService.stop();
+  
+  // Stop text extraction processor
+  textExtractionProcessor.stopProcessing();
   
   if (server) {
     server.close(() => {

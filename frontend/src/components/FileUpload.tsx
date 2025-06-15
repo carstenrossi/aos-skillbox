@@ -26,7 +26,21 @@ const FileUpload: React.FC<FileUploadProps> = ({
   onUpload,
   maxFiles = 5,
   maxSize = 10, // 10MB default
-  allowedTypes = ['image/*', 'text/*', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  allowedTypes = [
+    'image/*', 
+    'text/*', 
+    'audio/*', 
+    'video/*',
+    'application/pdf', 
+    'application/msword', 
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/zip',
+    'application/x-zip-compressed'
+  ],
   disabled = false,
   className = '',
   language = 'de',

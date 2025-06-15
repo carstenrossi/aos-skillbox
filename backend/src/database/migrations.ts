@@ -430,6 +430,108 @@ export const migrations: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_assistants_created_at ON assistants(created_at);
       CREATE INDEX IF NOT EXISTS idx_assistants_is_active ON assistants(is_active);
     `
+  },
+  {
+    version: 14,
+    name: 'create_settings_table',
+    up: `
+      CREATE TABLE IF NOT EXISTS settings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        key TEXT UNIQUE NOT NULL,
+        value TEXT,
+        encrypted BOOLEAN DEFAULT FALSE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_settings_key ON settings(key);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_settings_key;
+      DROP TABLE IF EXISTS settings;
+    `
+  },
+  {
+    version: 17,
+    name: 'create_files_table',
+    up: `
+      CREATE TABLE IF NOT EXISTS files (
+        id TEXT PRIMARY KEY,
+        original_name TEXT NOT NULL,
+        s3_key TEXT UNIQUE NOT NULL,
+        s3_url TEXT NOT NULL,
+        file_size INTEGER NOT NULL,
+        content_type TEXT NOT NULL,
+        file_category TEXT NOT NULL CHECK (file_category IN ('text', 'binary')) DEFAULT 'binary',
+        uploaded_by TEXT NOT NULL,
+        upload_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        
+        -- Text extraction fields
+        extracted_text TEXT,
+        extraction_status TEXT CHECK (extraction_status IN ('pending', 'processing', 'completed', 'failed', 'not_applicable')) DEFAULT 'pending',
+        extraction_error TEXT,
+        extraction_timestamp DATETIME,
+        
+        -- Metadata
+        metadata TEXT, -- JSON string for additional file metadata
+        is_active BOOLEAN DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        
+        FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE CASCADE
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_files_uploaded_by ON files(uploaded_by);
+      CREATE INDEX IF NOT EXISTS idx_files_file_category ON files(file_category);
+      CREATE INDEX IF NOT EXISTS idx_files_extraction_status ON files(extraction_status);
+      CREATE INDEX IF NOT EXISTS idx_files_upload_timestamp ON files(upload_timestamp);
+      CREATE INDEX IF NOT EXISTS idx_files_s3_key ON files(s3_key);
+      CREATE INDEX IF NOT EXISTS idx_files_is_active ON files(is_active);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_files_is_active;
+      DROP INDEX IF EXISTS idx_files_s3_key;
+      DROP INDEX IF EXISTS idx_files_upload_timestamp;
+      DROP INDEX IF EXISTS idx_files_extraction_status;
+      DROP INDEX IF EXISTS idx_files_file_category;
+      DROP INDEX IF EXISTS idx_files_uploaded_by;
+      DROP TABLE IF EXISTS files;
+    `
+  },
+  {
+    version: 18,
+    name: 'create_conversation_files_table_v2',
+    up: `
+      CREATE TABLE IF NOT EXISTS conversation_files (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        conversation_id TEXT NOT NULL,
+        file_id TEXT NOT NULL,
+        attached_by TEXT NOT NULL,
+        attachment_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        attachment_context TEXT, -- Optional context about why file was attached
+        is_active BOOLEAN DEFAULT 1,
+        
+        FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+        FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE,
+        FOREIGN KEY (attached_by) REFERENCES users(id) ON DELETE CASCADE,
+        
+        UNIQUE(conversation_id, file_id) -- Prevent duplicate attachments
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_conversation_files_conversation_id ON conversation_files(conversation_id);
+      CREATE INDEX IF NOT EXISTS idx_conversation_files_file_id ON conversation_files(file_id);
+      CREATE INDEX IF NOT EXISTS idx_conversation_files_attached_by ON conversation_files(attached_by);
+      CREATE INDEX IF NOT EXISTS idx_conversation_files_timestamp ON conversation_files(attachment_timestamp);
+      CREATE INDEX IF NOT EXISTS idx_conversation_files_is_active ON conversation_files(is_active);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_conversation_files_is_active;
+      DROP INDEX IF EXISTS idx_conversation_files_timestamp;
+      DROP INDEX IF EXISTS idx_conversation_files_attached_by;
+      DROP INDEX IF EXISTS idx_conversation_files_file_id;
+      DROP INDEX IF EXISTS idx_conversation_files_conversation_id;
+      DROP TABLE IF EXISTS conversation_files;
+    `
   }
 ];
 

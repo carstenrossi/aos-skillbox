@@ -1,17 +1,60 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ChatModalProps, SupportedLanguage, Conversation } from '../types';
-import { X, Send, Upload, Plus, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Send, Upload, Plus, MessageSquare, ChevronLeft, ChevronRight, Paperclip, File } from 'lucide-react';
 import { translations } from '../utils/translations';
 import { useChat } from '../hooks/useChat';
 import ImageGallery from './ImageGallery';
 import AudioPlayer from './AudioPlayer';
 import FileUpload from './FileUpload';
 import ConversationList from './ConversationList';
+import { ApiService } from '../services/api';
 
 interface ChatModalWithHistoryProps extends ChatModalProps {
   assistants: any[]; // Array of all assistants for the sidebar
   user?: any; // Current logged in user
 }
+
+// Helper function to convert markdown links to HTML
+const renderMarkdownLinks = (text: string, isUserMessage: boolean = false) => {
+  // Convert [text](url) to clickable links
+  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = linkRegex.exec(text)) !== null) {
+    // Add text before the link
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    
+    // Add the clickable link with appropriate colors
+    const linkClasses = isUserMessage 
+      ? "text-white hover:text-gray-200 underline underline-offset-2" 
+      : "text-blue-600 hover:text-blue-800 underline";
+    
+    parts.push(
+      <a
+        key={match.index}
+        href={match[2]}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={linkClasses}
+      >
+        {match[1]}
+      </a>
+    );
+    
+    lastIndex = match.index + match[0].length;
+  }
+  
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  
+  return parts.length > 1 ? parts : text;
+};
 
 const ChatModalWithHistory: React.FC<ChatModalWithHistoryProps> = ({
   isOpen,
@@ -23,6 +66,7 @@ const ChatModalWithHistory: React.FC<ChatModalWithHistoryProps> = ({
 }) => {
   const [message, setMessage] = useState('');
   const [showFileUpload, setShowFileUpload] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [language] = useState<SupportedLanguage>('de');
   const [showSidebar, setShowSidebar] = useState(true);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(conversation || null);
@@ -112,15 +156,48 @@ const ChatModalWithHistory: React.FC<ChatModalWithHistoryProps> = ({
   const handleClose = () => {
     setMessage('');
     setShowFileUpload(false);
+    setSelectedFiles([]);
     setSelectedConversation(null);
     onClose();
   };
 
   const handleSend = async () => {
-    if (!message.trim() || isTyping || !isAuthenticated) return;
+    if ((!message.trim() && selectedFiles.length === 0) || isTyping || !isAuthenticated) return;
 
-    await safeSendMessage(message);
+    let finalMessage = message;
+
+    // If files are selected, upload them first and create a message with URLs
+    if (selectedFiles.length > 0) {
+      try {
+        // Upload files and collect results
+        const uploadPromises = selectedFiles.map(file => ApiService.uploadFile(file, selectedConversation?.id));
+        const uploadResults = await Promise.all(uploadPromises);
+        
+        // Create message with file information as clickable links
+        const fileInfos = uploadResults.map((result: any, index: number) => {
+          if (result.success && result.data) {
+            return `📎 [${result.data.originalName}](${result.data.s3Url})`;
+          } else {
+            return `❌ ${selectedFiles[index].name} (Upload fehlgeschlagen)`;
+          }
+        }).join('\n');
+
+        // Use file info as message if no text message provided
+        if (!message.trim()) {
+          finalMessage = fileInfos;
+        } else {
+          finalMessage = `${message}\n\n${fileInfos}`;
+        }
+      } catch (error) {
+        console.error('Error uploading files:', error);
+        finalMessage = message || '❌ Fehler beim Hochladen der Dateien';
+      }
+    }
+
+    // Send message (with files so they get properly attached to conversation)
+    await safeSendMessage(finalMessage, selectedFiles);
     setMessage('');
+    setSelectedFiles([]);
     setShowFileUpload(false);
   };
 
@@ -139,6 +216,11 @@ const ChatModalWithHistory: React.FC<ChatModalWithHistoryProps> = ({
 
   const handleFilesSelected = (files: File[]) => {
     console.log('Files selected:', files);
+    setSelectedFiles(prev => [...prev, ...files]);
+  };
+
+  const removeSelectedFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleConversationSelect = useCallback((conversation: Conversation) => {
@@ -213,233 +295,132 @@ const ChatModalWithHistory: React.FC<ChatModalWithHistoryProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Sidebar */}
-        <div className={`transition-all duration-300 ${showSidebar ? 'w-80' : 'w-0'} overflow-hidden border-r border-gray-200 bg-white/50`}>
-          {isAuthenticated && currentAssistant ? (
-            <ConversationList
-              assistants={assistants}
-              selectedConversationId={selectedConversation?.id}
-              onConversationSelect={handleConversationSelect}
-              onNewConversation={handleNewConversation}
-              className="h-full"
-              currentAssistantId={currentAssistant.id}
-            />
-          ) : (
-            <div className="h-full flex items-center justify-center p-4">
-              <div className="text-center text-gray-500">
-                <p className="text-sm">
-                  {!isAuthenticated 
-                    ? "Melden Sie sich an, um Ihre Unterhaltungen zu sehen"
-                    : "Assistent wird geladen..."
-                  }
-                </p>
+        {showSidebar && (
+          <div className="w-80 border-r border-gray-200 flex flex-col bg-white/50">
+            <div className="p-4 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-800">Unterhaltungen</h3>
+                <button
+                  onClick={() => setShowSidebar(false)}
+                  className="p-1 hover:bg-gray-100 rounded transition-colors"
+                >
+                  <ChevronLeft size={20} />
+                </button>
               </div>
             </div>
-          )}
-        </div>
+            
+            <div className="flex-1 overflow-hidden">
+              <ConversationList
+                assistants={assistants}
+                selectedConversationId={selectedConversation?.id}
+                onConversationSelect={handleConversationSelect}
+                onNewConversation={handleNewConversation}
+                currentAssistantId={currentAssistant?.id}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <div className="flex items-center space-x-4">
-              {/* Sidebar Toggle */}
-              <button
-                onClick={() => setShowSidebar(!showSidebar)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors focus-skillbox"
-                aria-label="Sidebar umschalten"
-                title="Sidebar umschalten"
-              >
-                {showSidebar ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
-              </button>
-
-              {/* Assistant Info */}
-              {currentAssistant && (
-                <>
-                  <div
-                    className={"w-12 h-12 rounded-full flex items-center justify-center text-xl bg-[#1e2235] text-white"}
-                  >
-                    {currentAssistant.icon}
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-800">
-                      {currentAssistant.display_name}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      {selectedConversation ? selectedConversation.title : 'Neue Unterhaltung'}
-                    </p>
-                  </div>
-                </>
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white/50">
+            <div className="flex items-center space-x-3">
+              {!showSidebar && (
+                <button
+                  onClick={() => setShowSidebar(true)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <ChevronRight size={20} />
+                </button>
               )}
+              
+              <div className="flex items-center space-x-3">
+                <div 
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg"
+                  style={{ backgroundColor: '#84dcc6' }}
+                >
+                  {currentAssistant?.icon || currentAssistant?.name?.charAt(0) || '?'}
+                </div>
+                <div>
+                  <h2 className="font-semibold text-gray-800">
+                    {currentAssistant?.display_name || currentAssistant?.name || 'Assistent'}
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    {selectedConversation?.title || 'Neue Unterhaltung'}
+                  </p>
+                </div>
+              </div>
             </div>
-            
-            <div className="flex items-center space-x-2">
-              {/* New Conversation Button */}
-              <button
-                onClick={safeStartNewConversation}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors focus-skillbox"
-                aria-label="Neue Unterhaltung starten"
-                title="Neue Unterhaltung starten"
-              >
-                <Plus size={20} />
-              </button>
 
-              {/* Close Button */}
-              <button
-                onClick={handleClose}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors focus-skillbox"
-                aria-label={t.chat.close}
-              >
-                <X size={24} />
-              </button>
-            </div>
+            <button
+              onClick={handleClose}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors focus-skillbox"
+              aria-label="Schließen"
+            >
+              <X size={24} />
+            </button>
           </div>
 
-          {/* Error Message */}
-          {error && (
-            <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-sm text-red-800">{error}</p>
-                </div>
-                <div className="text-center mt-4">
-                <button
-                  onClick={safeRetryLastMessage}
-                    className="mt-2 px-4 py-2 text-white rounded-md transition-opacity hover:opacity-90 text-sm"
-                    style={{ backgroundColor: '#84dcc6' }}
-                >
-                  {t.chat.retry}
-                </button>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
-            {allMessages.length === 0 && !isTyping && (
-              <div className="text-center text-gray-500 mt-8">
-                <MessageSquare size={48} className="mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium">
-                  {selectedConversation ? 'Unterhaltung laden...' : 'Neue Unterhaltung'}
-                </p>
-                <p className="text-sm mt-2">
-                  {currentAssistant ? `Starten Sie eine Unterhaltung mit ${currentAssistant.display_name}` : 'Wählen Sie einen Assistenten aus'}
-                </p>
-              </div>
-            )}
-
-            {allMessages.map((msg, index) => (
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {allMessages.filter(msg => !msg.isLoading).map((msg, index) => (
               <div
-                key={msg.id}
+                key={msg.id || index}
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[85%] space-y-2 ${
-                    msg.role === 'user' ? 'items-end' : 'items-start'
-                  } flex flex-col`}
+                  className={`max-w-[70%] p-3 rounded-2xl ${
+                    msg.role === 'user'
+                      ? 'bg-skillbox-purple text-white'
+                      : 'bg-white border border-gray-200 text-gray-800'
+                  }`}
                 >
-                  {/* Message Bubble */}
-                  <div
-                    className={`px-4 py-3 rounded-2xl ${
-                      msg.role === 'user'
-                        ? 'chat-bubble-user'
-                        : 'chat-bubble-ai'
-                    }`}
-                  >
-                    {msg.isLoading ? (
-                      <div className="typing-indicator">
-                        <div className="typing-dot"></div>
-                        <div className="typing-dot"></div>
-                        <div className="typing-dot"></div>
-                      </div>
-                    ) : (
-                      <div>
-                        <p className="text-sm whitespace-pre-wrap">{
-                          // Remove markdown images and audio links from content display
-                          msg.content
-                            .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
-                            .replace(/\[Audio anhören\]\([^)]+\)/g, '')
-                            .trim()
-                        }</p>
-                        {msg.error && (
-                          <p className="text-xs text-red-500 mt-1">{msg.error}</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* File Attachments */}
-                  {msg.attachedFiles && msg.attachedFiles.length > 0 && (
-                    <div className="space-y-1">
-                      {msg.attachedFiles.map((file: File, fileIndex: number) => (
-                        <div
-                          key={fileIndex}
-                          className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded"
-                        >
-                          📎 {file.name}
+                  <div className="whitespace-pre-wrap">{renderMarkdownLinks(msg.content, msg.role === 'user')}</div>
+                  
+                  {/* Display attached files */}
+                  {msg.files && msg.files.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {msg.files.map((file, fileIndex) => (
+                        <div key={fileIndex} className="flex items-center space-x-2 text-sm opacity-75">
+                          <File size={14} />
+                          <span>{file.filename}</span>
                         </div>
                       ))}
                     </div>
                   )}
-
-                  {/* AI Generated Images */}
-                  {(() => {
-                    // Extract images from content if not already in msg.images
-                    const contentImages = msg.content.match(/!\[[^\]]*\]\(([^)]+)\)/g)?.map(match => {
-                      const urlMatch = match.match(/\(([^)]+)\)/);
-                      return urlMatch ? urlMatch[1] : null;
-                    }).filter((url): url is string => url !== null) || [];
-                    
-                    const allImages = [...(msg.images || []), ...contentImages];
-                    const uniqueImages = Array.from(new Set(allImages));
-                    
-                    return uniqueImages.length > 0 ? (
-                      <ImageGallery 
-                        images={uniqueImages} 
-                        className="max-w-sm"
-                      />
-                    ) : null;
-                  })()}
-
-                  {/* Audio Links */}
-                  {(() => {
-                    // Extract audio links from content
-                    const audioLinkMatches = msg.content.match(/\[Audio anhören\]\(([^)]+)\)/g) || [];
-                    const audioUrls = audioLinkMatches.map(match => {
-                      const urlMatch = match.match(/\(([^)]+)\)/);
-                      return urlMatch ? urlMatch[1] : null;
-                    }).filter((url): url is string => url !== null);
-                    
-                    return audioUrls.length > 0 ? (
-                      <div className="space-y-2">
-                        {audioUrls.map((audioUrl, index) => (
-                          <AudioPlayer
-                            key={index}
-                            audioUrl={audioUrl}
-                            title={`Generiertes Audio ${index + 1}`}
-                            className="max-w-sm"
-                          />
-                        ))}
-                      </div>
-                    ) : null;
-                  })()}
-
-                  {/* Timestamp */}
-                  <p className="text-xs opacity-70 px-2">
-                    {msg.timestamp.toLocaleTimeString()}
-                  </p>
+                  
+                  {/* Display images if any */}
+                  {msg.images && msg.images.length > 0 && (
+                    <div className="mt-3">
+                      <ImageGallery images={msg.images} />
+                    </div>
+                  )}
+                  
+                  {msg.error && (
+                    <div className="mt-2 text-red-500 text-sm">
+                      {msg.error}
+                      <button
+                        onClick={safeRetryLastMessage}
+                        className="ml-2 underline hover:no-underline"
+                      >
+                        Wiederholen
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
-            
-            {/* Typing Indicator */}
-            {isTyping && !allMessages.some(m => m.isLoading) && (
+
+            {isTyping && (
               <div className="flex justify-start">
-                <div className="chat-bubble-ai">
-                  <div className="typing-indicator">
-                    <div className="typing-dot"></div>
-                    <div className="typing-dot"></div>
-                    <div className="typing-dot"></div>
+                <div className="bg-white border border-gray-200 text-gray-800 p-3 rounded-2xl">
+                  <div className="flex items-center justify-center">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -448,70 +429,85 @@ const ChatModalWithHistory: React.FC<ChatModalWithHistoryProps> = ({
             <div ref={messagesEndRef} />
           </div>
 
-          {/* File Upload Area */}
-          {showFileUpload && (
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-              <FileUpload
-                onFilesSelected={handleFilesSelected}
-                onUpload={handleFileUpload}
-                maxFiles={3}
-                maxSize={25}
-                language={language}
-                className="max-w-none"
-              />
+          {/* Selected Files Display */}
+          {selectedFiles.length > 0 && (
+            <div className="px-4 py-2 border-t border-gray-200 bg-gray-50">
+              <div className="flex items-center space-x-2 mb-2">
+                <Paperclip size={16} className="text-gray-500" />
+                <span className="text-sm text-gray-600">Ausgewählte Dateien ({selectedFiles.length})</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {selectedFiles.map((file, index) => (
+                  <div key={index} className="flex items-center space-x-2 bg-white px-3 py-1 rounded-full border">
+                    <File size={14} className="text-gray-500" />
+                    <span className="text-sm text-gray-700 truncate max-w-32">{file.name}</span>
+                    <button
+                      onClick={() => removeSelectedFile(index)}
+                      className="text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Chat Input Area */}
-          <div className="p-4 border-t border-gray-200">
-            {showFileUpload && <FileUpload onUpload={handleFileUpload} onFilesSelected={handleFilesSelected} />}
-            <div className="flex items-end space-x-2">
+          {/* Input Area */}
+          <div className="p-4 border-t border-gray-200 bg-white/50">
+            {error && (
+              <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="flex items-center space-x-3">
+              {/* File Upload Button */}
+              <button
+                onClick={() => setShowFileUpload(!showFileUpload)}
+                className="flex-shrink-0 w-11 h-11 flex items-center justify-center text-gray-500 hover:text-skillbox-purple hover:bg-gray-100 rounded-full transition-colors border border-gray-300"
+                title="Dateien anhängen"
+              >
+                <Paperclip size={22} />
+              </button>
+
+              {/* Message Input */}
+              <div className="flex-1">
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder={currentAssistant ? `Nachricht an ${currentAssistant.display_name}...` : t.chat.placeholder}
-                className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[3rem] max-h-32"
+                  placeholder={selectedFiles.length > 0 ? "Nachricht (optional)..." : "Nachricht eingeben..."}
+                  className="w-full p-3 border border-gray-300 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-skillbox-purple focus:border-transparent"
                   rows={1}
-                disabled={isLoading || isTyping || !isAuthenticated}
-                  onInput={(e) => {
-                    const target = e.target as HTMLTextAreaElement;
-                    target.style.height = 'auto';
-                    target.style.height = target.scrollHeight + 'px';
-                  }}
+                  style={{ minHeight: '44px', maxHeight: '120px' }}
+                  disabled={isTyping}
                 />
-              <button
-                onClick={() => setShowFileUpload(!showFileUpload)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors focus-skillbox"
-                aria-label={t.chat.upload}
-              >
-                <Upload size={20} />
-              </button>
+              </div>
+
+              {/* Send Button */}
               <button
                 onClick={handleSend}
-                disabled={!message.trim() || isLoading || isTyping || !isAuthenticated}
-                className="p-3 text-white rounded-lg disabled:opacity-50 transition-opacity hover:opacity-90 focus-skillbox"
-                style={{ backgroundColor: '#84dcc6' }}
-                aria-label={t.chat.send}
+                disabled={(!message.trim() && selectedFiles.length === 0) || isTyping}
+                className="flex-shrink-0 w-11 h-11 flex items-center justify-center bg-skillbox-purple text-white rounded-full hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Send size={20} />
+                <Send size={22} />
               </button>
             </div>
-          </div>
 
-          {/* Error display area */}
-          {error && !isLoading && (
-            <div className="flex items-center justify-between p-3 mx-4 mb-2 bg-red-100 rounded-md text-red-700">
-              <div className="text-sm flex-grow">{error}</div>
-              <button
-                onClick={safeRetryLastMessage}
-                className="ml-4 px-3 py-1.5 text-white rounded-md transition-opacity hover:opacity-90 text-xs"
-                style={{ backgroundColor: '#84dcc6' }}
-              >
-                {t.chat.retry}
-              </button>
-            </div>
-          )}
+            {/* File Upload Area */}
+            {showFileUpload && (
+              <div className="mt-3 p-3 border border-gray-200 rounded-lg bg-white">
+                <FileUpload
+                  onFilesSelected={handleFilesSelected}
+                  maxFiles={5}
+                  maxSize={10}
+                  className="border-none p-0"
+                  language={language}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

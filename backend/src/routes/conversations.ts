@@ -624,13 +624,75 @@ Wenn der Benutzer etwas anderes fragt, antworte normal.`;
     
     console.log(`📖 Including ${historyMessages.length} history messages in context`);
 
+    // 📎 LOAD CONVERSATION FILES AND THEIR EXTRACTED TEXT
+    console.log(`📎 Loading files attached to conversation: ${id}`);
+    let fileContexts = '';
+    try {
+      const { fileService } = await import('../services/fileService');
+      const conversationFiles = await fileService.getConversationFiles(id);
+      
+      if (conversationFiles.length > 0) {
+        console.log(`📎 Found ${conversationFiles.length} files attached to conversation`);
+        
+        const filesWithText = conversationFiles.filter(file => 
+          file.extracted_text && 
+          file.extraction_status === 'completed'
+        );
+        
+        const binaryFiles = conversationFiles.filter(file => 
+          file.file_category === 'binary' && file.s3_url
+        );
+        
+        if (filesWithText.length > 0 || binaryFiles.length > 0) {
+          console.log(`📄 Including ${filesWithText.length} text files and ${binaryFiles.length} binary files in context`);
+          
+          fileContexts = '\n\n📎 **ANGEHÄNGTE DATEIEN:**\n\n';
+          
+          // Add text files with content
+          filesWithText.forEach((file, index) => {
+            fileContexts += `**Datei ${index + 1}: ${file.original_name}** (Text)\n`;
+            fileContexts += `Typ: ${file.content_type}\n`;
+            fileContexts += `Größe: ${(file.file_size / 1024).toFixed(1)} KB\n`;
+            fileContexts += `Hochgeladen: ${new Date(file.upload_timestamp).toLocaleString('de-DE')}\n`;
+            fileContexts += `\n**Inhalt:**\n${file.extracted_text}\n\n`;
+            fileContexts += '---\n\n';
+          });
+          
+          // Add binary files with URLs
+          binaryFiles.forEach((file, index) => {
+            const fileNumber = filesWithText.length + index + 1;
+            fileContexts += `**Datei ${fileNumber}: ${file.original_name}** (Binär)\n`;
+            fileContexts += `Typ: ${file.content_type}\n`;
+            fileContexts += `Größe: ${(file.file_size / 1024).toFixed(1)} KB\n`;
+            fileContexts += `Hochgeladen: ${new Date(file.upload_timestamp).toLocaleString('de-DE')}\n`;
+            fileContexts += `**URL:** ${file.s3_url}\n`;
+            fileContexts += `**Verfügbar für:** Anzeige, Download, Weiterverarbeitung\n\n`;
+            fileContexts += '---\n\n';
+          });
+          
+          fileContexts += '**WICHTIG:** Du hast Zugriff auf:\n';
+          fileContexts += '- Textdateien: Vollständiger Inhalt verfügbar\n';
+          fileContexts += '- Binärdateien: URLs für Zugriff und Automatisierung verfügbar\n';
+          fileContexts += 'Beziehe dich bei Bedarf auf diese Dateien in deinen Antworten.\n\n';
+          fileContexts += '**ANWEISUNG:** Wenn der Benutzer nach dem Inhalt einer hochgeladenen Datei fragt, verwende IMMER die oben bereitgestellten Dateiinhalte. Sage NIEMALS, dass du keinen Zugriff auf die Dateien hast - du hast vollständigen Zugriff auf alle extrahierten Texte und URLs.\n\n';
+          fileContexts += '**WICHTIG:** Wenn der Benutzer eine Nachricht mit einer Datei-URL sendet (z.B. "📎 filename.pdf (https://...)"), ignoriere die URL und verwende stattdessen die oben bereitgestellten extrahierten Dateiinhalte. Die URL ist nur für interne Zwecke - du hast bereits Zugriff auf den vollständigen Inhalt.\n\n';
+        } else {
+          console.log(`📎 ${conversationFiles.length} files attached, but none have extracted text or binary URLs yet`);
+        }
+      } else {
+        console.log(`📎 No files attached to this conversation`);
+      }
+    } catch (fileError) {
+      console.error('Error loading conversation files:', fileError);
+    }
+
     // Prepare AI request
     const requestData = {
       model: assistant.model_name || assistant.name.toLowerCase().replace(/\s+/g, '-'),
       messages: [
         {
           role: 'system',
-          content: enhancedSystemPrompt
+          content: enhancedSystemPrompt + fileContexts  // 📎 Include file contexts in system prompt
         },
         ...historyMessages,  // 🆕 Include conversation history
         {
@@ -1019,6 +1081,80 @@ router.get('/:id/summary', authenticateToken as any, async (req: Request, res: R
     return res.status(500).json({
       success: false,
       error: { message: 'Failed to get conversation summary' },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// GET /api/conversations/:id/files - Get files attached to conversation
+router.get('/:id/files', authenticateToken as any, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as unknown as AuthenticatedRequest).user?.userId;
+    if (!userId) {
+      return res.status(401).json({ 
+        success: false, 
+        error: { message: 'User not authenticated' } 
+      });
+    }
+
+    const { id } = req.params;
+
+    // Verify conversation exists and user owns it
+    const conversationModel = getConversationModel();
+    const conversation = await conversationModel.findById(id);
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Conversation not found' },
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (conversation.user_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: { message: 'Access denied' },
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Get files attached to conversation
+    const { fileService } = await import('../services/fileService');
+    const files = await fileService.getConversationFiles(id);
+
+    const filesData = files.map(file => ({
+      id: file.id,
+      originalName: file.original_name,
+      fileSize: file.file_size,
+      contentType: file.content_type,
+      fileCategory: file.file_category,
+      uploadTimestamp: file.upload_timestamp,
+      extractionStatus: file.extraction_status,
+      extractedText: file.extracted_text,
+      extractionError: file.extraction_error,
+      extractionTimestamp: file.extraction_timestamp,
+      hasExtractedText: !!file.extracted_text,
+      s3Key: file.s3_key,
+      s3Url: file.s3_url
+    }));
+
+    return res.json({
+      success: true,
+      data: {
+        conversationId: id,
+        files: filesData,
+        totalFiles: filesData.length,
+        filesWithText: filesData.filter(f => f.hasExtractedText).length
+      },
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error getting conversation files:', error);
+    return res.status(500).json({
+      success: false,
+      error: { message: 'Failed to get conversation files' },
       timestamp: new Date().toISOString()
     });
   }

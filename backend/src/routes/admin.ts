@@ -8,6 +8,8 @@ import { AuthenticatedRequest } from '../types';
 import { body, query, validationResult } from 'express-validator';
 import { getUserModel } from '../models/UserSQLite';
 import { getPluginMigrationService } from '../services/pluginMigrationService';
+import { s3Service, S3Config } from '../services/s3Service';
+import { settingsService } from '../services/settingsService';
 
 const router = Router();
 
@@ -561,6 +563,181 @@ router.post('/plugins/sync', async (req: Request, res: Response): Promise<void> 
         code: 'PLUGIN_SYNC_FAILED',
       },
       timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// S3 Configuration Routes
+
+// GET /api/admin/s3-config
+router.get('/s3-config', async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Versuche zuerst aus der Datenbank zu laden
+    const dbConfig = await settingsService.getS3Config();
+    
+    // Falls in der Datenbank vorhanden, verwende diese Konfiguration
+    if (dbConfig.accessKeyId && dbConfig.secretAccessKey && dbConfig.region && dbConfig.bucket) {
+      const safeConfig = {
+        region: dbConfig.region,
+        bucket: dbConfig.bucket,
+        accessKeyId: dbConfig.accessKeyId ? '***' + dbConfig.accessKeyId.slice(-4) : '',
+        secretAccessKey: dbConfig.secretAccessKey ? '***' : '',
+        publicUrlPrefix: dbConfig.publicUrlPrefix || `https://${dbConfig.bucket}.s3.${dbConfig.region}.amazonaws.com`
+      };
+
+      res.json({
+        success: true,
+        data: safeConfig,
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    // Fallback: Aktuelle Service-Konfiguration
+    const currentConfig = s3Service.getConfig();
+    
+    if (!currentConfig) {
+      res.json({
+        success: true,
+        data: {
+          region: 'eu-north-1',
+          bucket: 'skillbox-master',
+          accessKeyId: '',
+          secretAccessKey: '',
+          publicUrlPrefix: 'https://skillbox-master.s3.eu-north-1.amazonaws.com'
+        },
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    // Sensitive Daten maskieren
+    const safeConfig = {
+      region: currentConfig.region,
+      bucket: currentConfig.bucket,
+      accessKeyId: currentConfig.accessKeyId ? '***' + currentConfig.accessKeyId.slice(-4) : '',
+      secretAccessKey: currentConfig.secretAccessKey ? '***' : '',
+      publicUrlPrefix: currentConfig.publicUrlPrefix
+    };
+
+    res.json({
+      success: true,
+      data: safeConfig,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error getting S3 config:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get S3 configuration',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// PUT /api/admin/s3-config
+router.put('/s3-config', [
+  body('region').notEmpty().withMessage('Region is required'),
+  body('bucket').notEmpty().withMessage('Bucket name is required'),
+  body('accessKeyId').notEmpty().withMessage('Access Key ID is required'),
+  body('secretAccessKey').notEmpty().withMessage('Secret Access Key is required'),
+  body('publicUrlPrefix').isURL().withMessage('Public URL prefix must be a valid URL')
+], async (req: Request, res: Response): Promise<void> => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: errors.array(),
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    const { region, bucket, accessKeyId, secretAccessKey, publicUrlPrefix } = req.body;
+
+    // Neue S3-Konfiguration
+    const newConfig: S3Config = {
+      region,
+      bucket,
+      accessKeyId,
+      secretAccessKey,
+      publicUrlPrefix
+    };
+
+    // Konfiguration in Datenbank speichern und S3 Service initialisieren
+    const saved = await s3Service.saveAndInitialize(newConfig);
+    
+    if (!saved) {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to save S3 configuration to database',
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+    
+    const adminUser = (req as unknown as AuthenticatedRequest).user!;
+    console.log(`🔧 S3 configuration saved and updated by admin user: ${adminUser.username}`);
+
+    res.json({
+      success: true,
+      data: {
+        region: newConfig.region,
+        bucket: newConfig.bucket,
+        accessKeyId: '***' + newConfig.accessKeyId.slice(-4),
+        secretAccessKey: '***',
+        publicUrlPrefix: newConfig.publicUrlPrefix
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error updating S3 config:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update S3 configuration',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// POST /api/admin/s3-config/test
+router.post('/s3-config/test', async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!s3Service.isInitialized()) {
+      res.status(400).json({
+        success: false,
+        error: 'S3 service not configured. Please configure S3 settings first.',
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    // Verbindungstest durchführen
+    const isConnected = await s3Service.testConnection();
+
+    if (isConnected) {
+      const adminUser = (req as unknown as AuthenticatedRequest).user!;
+      console.log(`✅ S3 connection test successful - tested by admin: ${adminUser.username}`);
+      res.json({
+        success: true,
+        data: { status: 'connected', message: 'S3 connection successful' },
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: 'S3 connection test failed',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('Error testing S3 connection:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to test S3 connection',
+      timestamp: new Date().toISOString()
     });
   }
 });

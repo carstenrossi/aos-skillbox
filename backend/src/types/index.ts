@@ -221,7 +221,7 @@ export interface JWTPayload {
   exp: number;
 }
 
-// Request with authenticated user
+// AuthenticatedRequest that properly extends Express Request
 export interface AuthenticatedRequest extends Request {
   user?: JWTPayload;
   body: any;
